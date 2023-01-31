@@ -161,9 +161,11 @@ while(True):
             data = generate_msg()
             cks = uhashlib.sha256(data)
             cks = cks.digest()
-            cks = ubinascii.hexlify(cks)[8:]
+            cks = ubinascii.hexlify(cks)
+            cks = cks.decode()[:8]
+            print("ID =", dev_id, "Data =", data, "Checksum =", int(cks, 16))
             last_seq = pkts
-            data = struct.pack('I%dsii' % len(data), dev_id, data, int(cks, 16), pkts)
+            data = struct.pack('IBII%ds' % len(data), dev_id, len(data), int(cks, 16), pkts, data)
             lora.send(data)
             last_trans = time.ticks_ms()
             ack = 0

@@ -13,6 +13,7 @@ import uerrno
 import sys
 import random
 import uhashlib
+import math
 
 # led = Pin(25,Pin.OUT) # heltec V2
 led = Pin(2,Pin.OUT) # TTGO
@@ -117,30 +118,36 @@ def airtime(sf,cr,pl,bw):
 
 
 def rx_handler(recv_pkg):
-    global schedule
+    global schedule, next_avail_slot, next_duty_cycle
     if (len(recv_pkg) > 2):
-        recv_pkg_len = recv_pkg[1]
-        try:
-            (dev_id, data, cks, seq) = struct.unpack("I%dsii", recv_pkg)
-            recv_time = time.ticks_ms()
-            check = uhashlib.sha256(data)
-            check = check.digest()
-            ckeck = ubinascii.hexlify(check)[8:]
-            if (check == cks):
-                # schedule an ack if the ack does not collide with other transmissions and there are available resources
-                if (recv_time+1000 > next_avail_slot) and (next_duty_cycle[1] <= recv_time+1000):
-                    airt = airtime(_sf,1,12,125)
-                    schedule.append([recv_time+980, dev_id, seq, 1])
-                    next_avail_slot = recv_time + 1000 + airt
-                elif (recv_time+2000 > next_avail_slot) and (next_duty_cycle[2] <= recv_time+2000):
-                    airt = airtime(_rx2sf,1,12,125)
-                    schedule.append([recv_time+1980, dev_id, seq, 2])
-                else:
-                    print("Gateway unavailable!")
+        recv_pkg_len = recv_pkg[4]
+        print(recv_pkg_len)
+        # try:
+        (dev_id, leng, cks, seq, msg) = struct.unpack('IBII%ds' % recv_pkg_len, recv_pkg)
+        print(dev_id, leng, cks, seq, msg)
+        recv_time = time.ticks_ms()
+        msg = msg.decode()
+        cks_ = uhashlib.sha256(msg)
+        cks_ = cks_.digest()
+        cks_ = ubinascii.hexlify(cks_)
+        cks_ = cks_.decode()[:8]
+        print(msg, cks_, cks)
+        if (int(cks_,16) == cks):
+        # if (leng == recv_pkg_len):
+            # schedule an ack if the ack does not collide with other transmissions and there are available resources
+            if (recv_time+1000 > next_avail_slot) and (next_duty_cycle[1] <= recv_time+1000):
+                airt = airtime(_sf,1,12,125)
+                schedule.append([recv_time+980, dev_id, seq, 1])
+                next_avail_slot = recv_time + 1000 + airt
+            elif (recv_time+2000 > next_avail_slot) and (next_duty_cycle[2] <= recv_time+2000):
+                airt = airtime(_rx2sf,1,12,125)
+                schedule.append([recv_time+1980, dev_id, seq, 2])
             else:
-                print("Checksum not valid!")
-        except:
-            print("wrong packet format!")
+                print("Gateway unavailable!")
+        else:
+            print("Checksum not valid!")
+        # except:
+            # print("wrong packet format!")
 
 def scheduler():
     global schedule, next_duty_cycle
