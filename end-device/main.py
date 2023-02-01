@@ -66,7 +66,7 @@ last_seq = -1
 _start_experiment = 1
 _pkts = 10
 _pkt_size = 16
-_period = 60
+_period = 10
 _sf = 7
 _confirmed = 1
 
@@ -135,16 +135,16 @@ def random_sleep(max_sleep):
     time.sleep(1+t%max_sleep)
 
 def rx_handler(recv_pkg):
-    global ack, last_seq
+    global ack
     if (len(recv_pkg) > 2):
         recv_pkg_len = recv_pkg[1]
-        try:
-            (gw_id, dev_id, seq) = struct.unpack("iii", recv_pkg)
-            print('Received response from', hex(gw_id))
-            if (int(dev_id, 16) == _dev_id) and (seq == last_seq):
-                ack = 1
-        except:
-            print("wrong packet format!")
+        # try:
+        (gw_id, id, seq) = struct.unpack("iii", recv_pkg)
+        print('Received response from', hex(gw_id), dev_id, seq)
+        if (id == dev_id) and (seq == last_seq):
+            ack = 1
+        # except:
+            # print("wrong packet format!")
 
 # _thread.start_new_thread(wait_commands, ())
 
@@ -155,6 +155,7 @@ while(True):
         # random_sleep(_period)
         lora.standby()
         pkts = 1
+        delivered = 0
         _start_experiment = 0
         while(pkts <= _pkts and _start_experiment == 0):
             print("-------",pkts,"-------")
@@ -180,6 +181,7 @@ while(True):
                         break
                 if (ack):
                     delivered += 1
+                    print("RX1 ack received!")
                 else:
                     lora.sleep()
                     led.value(0)
@@ -194,6 +196,7 @@ while(True):
                             break
                     if (ack):
                         delivered += 1
+                        print("RX2 ack received!")
                     else:
                         pkts -= 1
                         print("No ack was received in RX2")
