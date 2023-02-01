@@ -122,47 +122,48 @@ def rx_handler(recv_pkg):
     if (len(recv_pkg) > 2):
         recv_pkg_len = recv_pkg[4]
         print(recv_pkg_len)
-        # try:
-        (dev_id, leng, cks, seq, msg) = struct.unpack('IBII%ds' % recv_pkg_len, recv_pkg)
-        print(dev_id, leng, cks, seq, msg)
-        recv_time = time.ticks_ms()
-        msg = msg.decode()
-        cks_ = uhashlib.sha256(msg)
-        cks_ = cks_.digest()
-        cks_ = ubinascii.hexlify(cks_)
-        cks_ = cks_.decode()[:8]
-        print(msg, cks_, cks)
-        if (int(cks_,16) == cks):
-        # if (leng == recv_pkg_len):
-            # schedule an ack if the ack does not collide with other transmissions and there are available resources
-            if (recv_time+1000 > next_avail_slot) and (next_duty_cycle[1] <= recv_time+1000):
-                airt = airtime(_sf,1,12,125)
-                schedule.append([recv_time+980, dev_id, seq, 1])
-                next_avail_slot = recv_time + 1000 + airt
-            elif (recv_time+2000 > next_avail_slot) and (next_duty_cycle[2] <= recv_time+2000):
-                airt = airtime(_rx2sf,1,12,125)
-                schedule.append([recv_time+1980, dev_id, seq, 2])
+        try:
+            (dev_id, leng, cks, seq, msg) = struct.unpack('IBII%ds' % recv_pkg_len, recv_pkg)
+            print(dev_id, leng, cks, seq, msg)
+            recv_time = time.ticks_ms()
+            msg = msg.decode()
+            cks_ = uhashlib.sha256(msg)
+            cks_ = cks_.digest()
+            cks_ = ubinascii.hexlify(cks_)
+            cks_ = cks_.decode()[:8]
+            print(msg, cks_, cks)
+            if (int(cks_,16) == cks):
+                # schedule an ack if the ack does not collide with other transmissions and there are available resources
+                if (recv_time+1000 > next_avail_slot) and (next_duty_cycle[1] <= recv_time+1000):
+                    airt = airtime(_sf,1,12,125)
+                    schedule.append([recv_time+1000, dev_id, seq, 1])
+                    next_avail_slot = recv_time + 1000 + airt
+                elif (recv_time+2000 > next_avail_slot) and (next_duty_cycle[2] <= recv_time+2000):
+                    airt = airtime(_rx2sf,1,12,125)
+                    schedule.append([recv_time+2000, dev_id, seq, 2])
+                else:
+                    print("Gateway unavailable!")
             else:
-                print("Gateway unavailable!")
-        else:
-            print("Checksum not valid!")
-        # except:
-            # print("wrong packet format!")
+                print("Checksum not valid!")
+        except:
+            print("wrong packet format!")
 
 def scheduler():
     global schedule, next_duty_cycle
     while(1):
         if len(schedule) > 0:
             (tm, dev_id, seq, win) = schedule[0]
+            print("picked up", tm, dev_id, seq, win)
             ack_pkt = struct.pack('iii', gw_id, dev_id, seq)
-            while(time.ticks_diff(time.ticks_ms(), tm) > 0):
-                machine.idle()
+            while(time.ticks_diff(tm, time.ticks_ms()) > 0):
+                idle()
             if (win == 2):
                 lora.set_spreading_factor(_rx2sf)
                 lora.set_frequency(rx2freq)
+            print("Sending ack at", time.ticks_ms(), "(", tm, ")")
             lora.send(ack_pkt)
             if (win == 1):
-                next_duty_cycle[2] = time.ticks_ms()+99*airtime(_sf,1,12,125)
+                next_duty_cycle[1] = time.ticks_ms()+99*airtime(_sf,1,12,125)
             elif (win == 2):
                 next_duty_cycle[2] = time.ticks_ms()+9*airtime(_rx2sf,1,12,125)
             schedule.remove(schedule[0])
