@@ -68,13 +68,14 @@ _pkts = 10
 _pkt_size = 16
 _period = 10
 _sf = 7
+_rx2sf = 9
 _confirmed = 1
 
 ### --- FUNCTIONS --- ###
 def convert_mac(mac):
     # first 24 bits = OUI
     addr = mac[-6:]
-    print(addr)
+    print("ED id =", addr)
     return int(addr, 16)
 
 def oled_lines(line1, line2, line3, line4):
@@ -86,13 +87,8 @@ def oled_lines(line1, line2, line3, line4):
     oled.show()
 
 def wifi_connect():
-    global wlan, mac, dev_id
+    global wlan
     wlan.active(True)
-    mac = ubinascii.hexlify(wlan.config('mac')).decode().upper()
-    dev_id = convert_mac(mac)
-    mac = ':'.join(mac[i:i+2] for i in range(0,12,2))
-    print("MAC address:", mac)
-    oled_lines("LoRa testbed", mac, " ", " ")
     if not wlan.isconnected():
         print('connecting to network...')
         wlan.connect('rasp', 'lalalala')
@@ -138,18 +134,23 @@ def rx_handler(recv_pkg):
     global ack
     if (len(recv_pkg) > 2):
         recv_pkg_len = recv_pkg[1]
-        # try:
-        (gw_id, id, seq) = struct.unpack("iii", recv_pkg)
-        print('Received response from', hex(gw_id), dev_id, seq)
-        if (id == dev_id) and (seq == last_seq):
-            ack = 1
-        # except:
-            # print("wrong packet format!")
+        try:
+            (gw_id, id, seq) = struct.unpack("iii", recv_pkg)
+            print('Received response from', hex(gw_id), dev_id, seq)
+            if (id == dev_id) and (seq == last_seq):
+                ack = 1
+        except:
+            print("wrong packet format!")
+
+dev_id = convert_mac(ubinascii.hexlify(wlan.config('mac')).decode())
+mac = ubinascii.hexlify(wlan.config('mac')).decode().upper()
+mac = ':'.join(mac[i:i+2] for i in range(0,12,2))
+oled_lines("LoRa testbed", mac, " ", " ")
 
 # _thread.start_new_thread(wait_commands, ())
 
 while(True):
-    # time.sleep(10)
+    # time.sleep(10) # give some time to wifi to connect
     if (_start_experiment):
         print("Random sleep time")
         # random_sleep(_period)
@@ -159,23 +160,26 @@ while(True):
         _start_experiment = 0
         while(pkts <= _pkts and _start_experiment == 0):
             print("-------",pkts,"-------")
+            oled_lines("LoRa testbed", mac, str(pkts), " ")
             data = generate_msg()
             cks = uhashlib.sha256(data)
             cks = cks.digest()
             cks = ubinascii.hexlify(cks)
             cks = cks.decode()[:8]
-            print("ID =", dev_id, "Data =", data, "Checksum =", int(cks, 16))
+            print("ID =", hex(dev_id), "Data =", data, "Checksum =", int(cks, 16))
             last_seq = pkts
             data = struct.pack('IBII%ds' % len(data), dev_id, len(data), int(cks, 16), pkts, data)
             lora.send(data)
             last_trans = time.ticks_ms()
+            print("transmitted at:", last_trans)
             ack = 0
             if (_confirmed):
-                time.sleep_ms(980)
+                time.sleep_ms(990)
                 lora.on_recv(rx_handler)
                 lora.recv()
                 recv_time = time.ticks_ms()
                 led.value(1)
+                # print("Waiting in RX1 at:", time.ticks_ms())
                 while(time.ticks_diff(time.ticks_ms(), recv_time) < 200):
                     if (ack):
                         break
@@ -186,11 +190,13 @@ while(True):
                     lora.sleep()
                     led.value(0)
                     print("No ack was received in RX1")
-                    time.sleep_ms( time.ticks_diff(last_trans+1980, time.ticks_ms()) )
-                    lora.set_spreading_factor(12)
+                    time.sleep_ms( time.ticks_diff(last_trans+1990, time.ticks_ms()) )
+                    lora.set_spreading_factor(_rx2sf)
                     lora.set_frequency(rx2freq)
                     lora.recv()
+                    recv_time = time.ticks_ms()
                     led.value(1)
+                    # print("Waiting in RX2 at:", time.ticks_ms())
                     while(time.ticks_diff(time.ticks_ms(), recv_time) < 200):
                         if (ack):
                             break
