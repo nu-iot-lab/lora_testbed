@@ -63,7 +63,6 @@ wlan = network.WLAN(network.STA_IF)
 mac = "FFFFFFFFFFFF"
 gw_id = 1000000
 schedule = []
-unavailability = {}
 next_rx1 = 0.0
 next_rx2 = 0.0
 next_duty_cycle = {}
@@ -82,9 +81,9 @@ def convert_mac(mac):
 def oled_lines(line1, line2, line3, line4):
     oled.fill(0)
     oled.text(line1, 0, 0)
-    oled.text(line2, 0, 10)
-    oled.text(line3, 0, 20)
-    oled.text(line4, 0, 30)
+    oled.text(line2, 0, 15)
+    oled.text(line3, 0, 25)
+    oled.text(line4, 0, 35)
     oled.show()
 
 def wifi_connect():
@@ -93,12 +92,39 @@ def wifi_connect():
     mac = ubinascii.hexlify(wlan.config('mac')).decode().upper()
     mac = ':'.join(mac[i:i+2] for i in range(0,12,2))
     print("MAC address:", mac)
-    oled_lines("LoRa testbed", mac, " ", " ")
     if not wlan.isconnected():
         print('connecting to network...')
         wlan.connect('rasp', 'lalalala')
         while not wlan.isconnected():
             pass
+    oled_lines("LoRa testbed", mac[2:], wlan.ifconfig()[0], "GW")
+
+def wait_commands():
+    global _sf, _rx2sf, schedule, next_rx1, next_rx2, next_duty_cycle
+    wifi_connect()
+    host = wlan.ifconfig()[0]
+    port = 8000
+    wlan_s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    wlan_s.bind((host, port))
+    wlan_s.listen(5)
+    print("Ready...")
+    while (True):
+        conn, addr = wlan_s.accept()
+        data = conn.recv(512)
+        if (len(data) > 10):
+            try:
+                (init, _sf, _rx2sf) = struct.unpack('HBB', data)
+                if (init > 0):
+                    print("---------------------------------")
+                    print("New experiment")
+                    schedule = []
+                    next_rx1 = 0.0
+                    next_rx2 = 0.0
+                    next_duty_cycle = {}
+                    next_duty_cycle[1] = 0.0
+                    next_duty_cycle[2] = 1.0
+            except:
+                print("wrong packet format!")
 
 # this is borrowed from LoRaSim (https://www.lancaster.ac.uk/scc/sites/lora/lorasim.html)
 def airtime(sf,cr,pl,bw):
@@ -178,6 +204,8 @@ def scheduler():
         if len(schedule) > 0:
             try:
                 (tm, dev_id, seq, win) = schedule[0]
+                if (tm > time.ticks_ms()):
+                    continue
                 print("picked up", tm, dev_id, seq, win)
                 ack_pkt = struct.pack('iii', gw_id, dev_id, seq)
                 while(time.ticks_diff(tm, time.ticks_ms()) > 0):
@@ -202,4 +230,5 @@ gw_id = convert_mac(ubinascii.hexlify(wlan.config('mac')).decode())
 lora.on_recv(rx_handler)
 lora.recv()
 
+_thread.start_new_thread(wait_commands, ())
 _thread.start_new_thread(scheduler, ())

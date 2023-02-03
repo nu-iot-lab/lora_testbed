@@ -63,7 +63,7 @@ lora.standby()
 mac = "FFFFFFFFFFFF"
 dev_id = 1000000
 last_seq = -1
-_start_experiment = 1
+_start_experiment = 0
 _pkts = 10
 _pkt_size = 16
 _period = 10
@@ -81,9 +81,9 @@ def convert_mac(mac):
 def oled_lines(line1, line2, line3, line4):
     oled.fill(0)
     oled.text(line1, 0, 0)
-    oled.text(line2, 0, 10)
-    oled.text(line3, 0, 20)
-    oled.text(line4, 0, 30)
+    oled.text(line2, 0, 15)
+    oled.text(line3, 0, 25)
+    oled.text(line4, 0, 35)
     oled.show()
 
 def wifi_connect():
@@ -104,15 +104,16 @@ def wait_commands():
     wlan_s.bind((host, port))
     wlan_s.listen(5)
     print("Ready...")
+    oled_lines("LoRa testbed", mac[2:], wlan.ifconfig()[0], "ED")
     while (True):
         conn, addr = wlan_s.accept()
         data = conn.recv(512)
         if (len(data) > 10):
             try:
-                (init, _pkts, _pkt_size, _period, _confirmed) = struct.unpack('BiiiB', data)
+                (init, _pkts, _pkt_size, _period, _sf, _rx2sf, _confirmed) = struct.unpack('HiiiBBB', data)
                 if (init > 0):
                     print("---------------------------------")
-                    print("New experiment with", pkts, "packets")
+                    print("New experiment with", _pkts, "packets")
                     _start_experiment = init
             except:
                 print("wrong packet format!")
@@ -145,22 +146,22 @@ def rx_handler(recv_pkg):
 dev_id = convert_mac(ubinascii.hexlify(wlan.config('mac')).decode())
 mac = ubinascii.hexlify(wlan.config('mac')).decode().upper()
 mac = ':'.join(mac[i:i+2] for i in range(0,12,2))
-oled_lines("LoRa testbed", mac, " ", " ")
+oled_lines("LoRa testbed", mac[2:], wlan.ifconfig()[0], "ED")
 
-# _thread.start_new_thread(wait_commands, ())
+_thread.start_new_thread(wait_commands, ())
 
 while(True):
-    # time.sleep(10) # give some time to wifi to connect
     if (_start_experiment):
         print("Random sleep time")
-        # random_sleep(_period)
+        random_sleep(_period)
         lora.standby()
         pkts = 1
         delivered = 0
+        failed = 0
         _start_experiment = 0
         while(pkts <= _pkts and _start_experiment == 0):
             print("-------",pkts,"-------")
-            oled_lines("LoRa testbed", mac, str(pkts), " ")
+            oled_lines("LoRa testbed", mac[2:], wlan.ifconfig()[0], str(pkts))
             data = generate_msg()
             cks = uhashlib.sha256(data)
             cks = cks.digest()
@@ -204,7 +205,7 @@ while(True):
                         delivered += 1
                         print("RX2 ack received!")
                     else:
-                        pkts -= 1
+                        failed += 1
                         print("No ack was received in RX2")
             lora.set_spreading_factor(_sf)
             lora.set_frequency(freqs[0])
@@ -215,3 +216,4 @@ while(True):
             time.sleep_ms(_period*1000)
             random_sleep(2) # sleep for some random time as well
         # TODO: send statistics
+        #stat_pkt = struct.pack('III', dev_id, delivered, failed)
