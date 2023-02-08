@@ -72,6 +72,10 @@ _rx2sf = 9
 _confirmed = 1
 
 ### --- FUNCTIONS --- ###
+def random_sleep(max_sleep):
+    t = random.getrandbits(32)
+    time.sleep(1+t%max_sleep)
+
 def convert_mac(mac):
     # first 24 bits = OUI
     addr = mac[-6:]
@@ -91,7 +95,8 @@ def wifi_connect():
     wlan.active(True)
     if not wlan.isconnected():
         print('connecting to network...')
-        wlan.connect('rasp', 'lalalala')
+	random_sleep(10)
+        wlan.connect('IoTLab', '97079088')
         while not wlan.isconnected():
             pass
 
@@ -104,6 +109,7 @@ def wait_commands():
     wlan_s.bind((host, port))
     wlan_s.listen(5)
     print("Ready...")
+    led.value(1)
     oled_lines("LoRa testbed", mac[2:], wlan.ifconfig()[0], "ED")
     while (True):
         conn, addr = wlan_s.accept()
@@ -127,21 +133,18 @@ def generate_msg():
         msg = msg[:-1]
     return msg
 
-def random_sleep(max_sleep):
-    t = random.getrandbits(32)
-    time.sleep(1+t%max_sleep)
-
 def rx_handler(recv_pkg):
-    global ack
+    global ack, rssi
     if (len(recv_pkg) > 2):
         recv_pkg_len = recv_pkg[1]
         try:
             (gw_id, id, seq) = struct.unpack("iii", recv_pkg)
             print('Received response from', hex(gw_id), dev_id, seq)
             if (id == dev_id) and (seq == last_seq):
+                rssi += lora.get_rssi()
                 ack = 1
         except:
-            print("wrong packet format!")
+            print("wrong GW packet format!")
 
 dev_id = convert_mac(ubinascii.hexlify(wlan.config('mac')).decode())
 mac = ubinascii.hexlify(wlan.config('mac')).decode().upper()
@@ -158,7 +161,9 @@ while(True):
         pkts = 1
         delivered = 0
         failed = 0
+        rssi = 0.0
         _start_experiment = 0
+        led.value(0)
         while(pkts <= _pkts and _start_experiment == 0):
             print("-------",pkts,"-------")
             oled_lines("LoRa testbed", mac[2:], wlan.ifconfig()[0], str(pkts))
@@ -215,5 +220,12 @@ while(True):
             # watch duty cycle violations here
             time.sleep_ms(_period*1000)
             random_sleep(2) # sleep for some random time as well
-        # TODO: send statistics
-        #stat_pkt = struct.pack('III', dev_id, delivered, failed)
+        if (_start_experiment == 0):
+            # send statistics
+            print("I am sending stats...")
+            rssi /= delivered
+            stat_pkt = struct.pack('IIIf', dev_id, delivered, failed, rssi)
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.connect(('192.168.1.230', 8000))
+            s.send(stat_pkt)
+            s.close()

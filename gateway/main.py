@@ -86,6 +86,10 @@ def oled_lines(line1, line2, line3, line4):
     oled.text(line4, 0, 35)
     oled.show()
 
+def random_sleep(max_sleep):
+    t = random.getrandbits(32)
+    time.sleep(1+t%max_sleep)
+
 def wifi_connect():
     global wlan, mac, gw_id
     wlan.active(True)
@@ -94,9 +98,10 @@ def wifi_connect():
     print("MAC address:", mac)
     if not wlan.isconnected():
         print('connecting to network...')
-        wlan.connect('rasp', 'lalalala')
+        random_sleep(10)
+        wlan.connect('IoTLab', '97079088')
         while not wlan.isconnected():
-            pass
+            time.sleep(1)
     oled_lines("LoRa testbed", mac[2:], wlan.ifconfig()[0], "GW")
 
 def wait_commands():
