@@ -101,7 +101,7 @@ def wifi_connect():
             pass
 
 def wait_commands():
-    global _start_experiment, _pkts, _pkt_size, _period, _confirmed
+    global lora, _start_experiment, _pkts, _sf, _rx2sf, _pkt_size, _period, _confirmed
     wifi_connect()
     host = wlan.ifconfig()[0]
     port = 8000
@@ -114,12 +114,16 @@ def wait_commands():
     while (True):
         conn, addr = wlan_s.accept()
         data = conn.recv(512)
-        if (len(data) > 10):
+        if (len(data) > 2):
             try:
                 (init, _pkts, _pkt_size, _period, _sf, _rx2sf, _confirmed) = struct.unpack('HiiiBBB', data)
                 if (init > 0):
                     print("---------------------------------")
-                    print("New experiment with", _pkts, "packets")
+                    print("New experiment with", _pkts, "packets and SF", _sf)
+                    lora.sleep()
+                    lora.set_spreading_factor(_sf)
+                    lora.set_frequency(freqs[0])
+                    lora.standby()
                     _start_experiment = init
             except:
                 print("wrong packet format!")
@@ -185,8 +189,8 @@ while(True):
                 lora.recv()
                 recv_time = time.ticks_ms()
                 led.value(1)
-                # print("Waiting in RX1 at:", time.ticks_ms())
-                while(time.ticks_diff(time.ticks_ms(), recv_time) < 200):
+                print("Waiting in RX1 at:", time.ticks_ms())
+                while(time.ticks_diff(time.ticks_ms(), recv_time) < 200*(_sf-7+1)):
                     if (ack):
                         break
                 if (ack):
@@ -202,8 +206,8 @@ while(True):
                     lora.recv()
                     recv_time = time.ticks_ms()
                     led.value(1)
-                    # print("Waiting in RX2 at:", time.ticks_ms())
-                    while(time.ticks_diff(time.ticks_ms(), recv_time) < 200):
+                    print("Waiting in RX2 at:", time.ticks_ms())
+                    while(time.ticks_diff(time.ticks_ms(), recv_time) < 1000):
                         if (ack):
                             break
                     if (ack):
@@ -217,15 +221,19 @@ while(True):
             led.value(0)
             lora.sleep()
             pkts += 1
-            # watch duty cycle violations here
-            time.sleep_ms(_period*1000)
-            random_sleep(2) # sleep for some random time as well
+            if (pkts <= _pkts): # just skip the last sleep time
+                # watch for duty cycle violations here
+                time.sleep_ms(_period*1000)
+                random_sleep(1) # sleep for some random time as well
+
         if (_start_experiment == 0):
-            # send statistics
             print("I am sending stats...")
-            rssi /= delivered
+            if delivered > 0:
+                rssi /= delivered
             stat_pkt = struct.pack('IIIf', dev_id, delivered, failed, rssi)
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.connect(('192.168.1.230', 8000))
             s.send(stat_pkt)
             s.close()
+            time.sleep(5)
+            reset()

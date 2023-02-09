@@ -78,12 +78,13 @@ def convert_mac(mac):
     print("Gateway id =", addr)
     return int(addr, 16)
 
-def oled_lines(line1, line2, line3, line4):
+def oled_lines(line1, line2, line3, line4, line5):
     oled.fill(0)
     oled.text(line1, 0, 0)
     oled.text(line2, 0, 15)
     oled.text(line3, 0, 25)
     oled.text(line4, 0, 35)
+    oled.text(line5, 0, 45)
     oled.show()
 
 def random_sleep(max_sleep):
@@ -102,34 +103,7 @@ def wifi_connect():
         wlan.connect('IoTLab', '97079088')
         while not wlan.isconnected():
             time.sleep(1)
-    oled_lines("LoRa testbed", mac[2:], wlan.ifconfig()[0], "GW")
-
-def wait_commands():
-    global _sf, _rx2sf, schedule, next_rx1, next_rx2, next_duty_cycle
-    wifi_connect()
-    host = wlan.ifconfig()[0]
-    port = 8000
-    wlan_s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    wlan_s.bind((host, port))
-    wlan_s.listen(5)
-    print("Ready...")
-    while (True):
-        conn, addr = wlan_s.accept()
-        data = conn.recv(512)
-        if (len(data) > 10):
-            try:
-                (init, _sf, _rx2sf) = struct.unpack('HBB', data)
-                if (init > 0):
-                    print("---------------------------------")
-                    print("New experiment")
-                    schedule = []
-                    next_rx1 = 0.0
-                    next_rx2 = 0.0
-                    next_duty_cycle = {}
-                    next_duty_cycle[1] = 0.0
-                    next_duty_cycle[2] = 1.0
-            except:
-                print("wrong packet format!")
+    oled_lines("LoRa testbed", mac[2:], wlan.ifconfig()[0], "GW", " ")
 
 # this is borrowed from LoRaSim (https://www.lancaster.ac.uk/scc/sites/lora/lorasim.html)
 def airtime(sf,cr,pl,bw):
@@ -148,10 +122,41 @@ def airtime(sf,cr,pl,bw):
     Tpayload = payloadSymbNB * Tsym
     return Tpream + Tpayload
 
+def wait_commands():
+    global lora, _sf, _rx2sf, schedule, next_rx1, next_rx2, next_duty_cycle, airt1, airt2
+    wifi_connect()
+    host = wlan.ifconfig()[0]
+    port = 8000
+    wlan_s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    wlan_s.bind((host, port))
+    wlan_s.listen(5)
+    print("Ready...")
+    while (True):
+        conn, addr = wlan_s.accept()
+        data = conn.recv(512)
+        if (len(data) > 2):
+            try:
+                (init, _sf, _rx2sf) = struct.unpack('HBB', data)
+                if (init > 0):
+                    print("---------------------------------")
+                    print("New experiment with SF", _sf, "and RX2SF", _rx2sf)
+                    oled_lines("LoRa testbed", mac[2:], wlan.ifconfig()[0], "GW", str(init))
+                    schedule = []
+                    next_rx1 = 0.0
+                    next_rx2 = 0.0
+                    next_duty_cycle = {}
+                    next_duty_cycle[1] = 0.0
+                    next_duty_cycle[2] = 1.0
+                    lora.sleep()
+                    lora.set_spreading_factor(_sf)
+                    lora.set_frequency(freqs[0])
+                    lora.recv()
+                    airt1 = airtime(_sf,1,12,125)
+                    airt2 = airtime(_rx2sf,1,12,125)
+            except:
+                print("wrong packet format!")
+
 def permitted(ti, w):
-    over = 2
-    airt1 = airtime(_sf,1,12,125)
-    airt2 = airtime(_rx2sf,1,12,125)
     if (w == 1):
         if (ti < next_duty_cycle[1]):
             print("No duty cycle resources available in RX1")
@@ -173,7 +178,7 @@ def permitted(ti, w):
     return 1
 
 def rx_handler(recv_pkg):
-    global schedule, next_avail_slot, next_duty_cycle
+    global schedule, next_duty_cycle, next_rx1, next_rx2
     if (len(recv_pkg) > 2):
         recv_pkg_len = recv_pkg[4]
         # print(recv_pkg_len)
@@ -181,7 +186,7 @@ def rx_handler(recv_pkg):
             print("---")
             (dev_id, leng, cks, seq, msg) = struct.unpack('IBII%ds' % recv_pkg_len, recv_pkg)
             recv_time = time.ticks_ms()
-            print("Received from:", hex(dev_id), leng, cks, seq, msg, "at", recv_time)
+            print("Received from:", hex(dev_id), leng, cks, seq, msg, "at", recv_time, lora.get_rssi())
             msg = msg.decode()
             cks_ = uhashlib.sha256(msg)
             cks_ = cks_.digest()
@@ -204,33 +209,38 @@ def rx_handler(recv_pkg):
             print("wrong packet format!")
 
 def scheduler():
-    global schedule, next_duty_cycle
+    global lora, schedule, next_duty_cycle
     while(1):
         if len(schedule) > 0:
             try:
                 (tm, dev_id, seq, win) = schedule[0]
-                if (tm > time.ticks_ms()):
+                if (tm > time.ticks_ms() or tm < next_duty_cycle[win]):
                     continue
                 print("picked up", tm, dev_id, seq, win)
                 ack_pkt = struct.pack('iii', gw_id, dev_id, seq)
-                while(time.ticks_diff(tm, time.ticks_ms()) > 0):
-                    idle()
                 if (win == 2):
+                    lora.sleep()
                     lora.set_spreading_factor(_rx2sf)
                     lora.set_frequency(rx2freq)
+                    lora.standby()
+                while(time.ticks_diff(tm, time.ticks_ms()) > 0):
+                    idle()
                 print("Sending ack to", hex(dev_id), "at", time.ticks_ms(), "( RX", win, ")")
                 lora.send(ack_pkt)
+                lora.sleep()
                 if (win == 1):
-                    next_duty_cycle[1] = time.ticks_ms()+99*airtime(_sf,1,12,125)
+                    next_duty_cycle[1] = time.ticks_ms()+99*airt1
                 elif (win == 2):
-                    next_duty_cycle[2] = time.ticks_ms()+9*airtime(_rx2sf,1,12,125)
-                lora.set_spreading_factor(_sf)
-                lora.set_frequency(freqs[0])
+                    next_duty_cycle[2] = time.ticks_ms()+9*airt2
+                    lora.set_spreading_factor(_sf)
+                    lora.set_frequency(freqs[0])
                 schedule.remove(schedule[0])
                 lora.recv()
             except:
                 print("Something went wrong in scheduling")
 
+airt1 = airtime(_sf,1,12,125)
+airt2 = airtime(_rx2sf,1,12,125)
 gw_id = convert_mac(ubinascii.hexlify(wlan.config('mac')).decode())
 lora.on_recv(rx_handler)
 lora.recv()

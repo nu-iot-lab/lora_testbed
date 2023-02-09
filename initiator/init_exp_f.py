@@ -19,13 +19,15 @@ for asset in assets:
 	MESSAGE = bytes(0)
 	print(asset)
 	items = asset.split(" ")
-	print("Sending to", items[0])
 	IP = items[1]
 	if (items[0] == 'GW'):
 		MESSAGE = struct.pack('HBB', init, int(items[2]), int(items[3]))
 	elif (items[0] == 'ED'):
 		eds += 1
 		MESSAGE = struct.pack('HiiiBBB', init, int(items[2]), int(items[3]), int(items[4]), int(items[5]), int(items[6]), int(items[7]))
+	else:
+		continue
+	print("Sending to", items[0])
 	try:
 		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		s.connect((IP, PORT))
