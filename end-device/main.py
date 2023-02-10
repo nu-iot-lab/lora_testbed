@@ -83,12 +83,13 @@ def convert_mac(mac):
     print("ED id =", addr)
     return int(addr, 16)
 
-def oled_lines(line1, line2, line3, line4):
+def oled_lines(line1, line2, line3, line4, line5):
     oled.fill(0)
     oled.text(line1, 0, 0)
     oled.text(line2, 0, 15)
     oled.text(line3, 0, 25)
     oled.text(line4, 0, 35)
+    oled.text(line5, 0, 45)
     oled.show()
 
 def wifi_connect():
@@ -112,7 +113,7 @@ def wait_commands():
     wlan_s.listen(5)
     print("Ready...")
     led.value(1)
-    oled_lines("LoRa testbed", mac[2:], wlan.ifconfig()[0], "ED")
+    oled_lines("LoRa testbed", mac[2:], wlan.ifconfig()[0], "ED", " ")
     while (True):
         conn, addr = wlan_s.accept()
         data = conn.recv(512)
@@ -122,13 +123,14 @@ def wait_commands():
                 if (init > 0):
                     print("---------------------------------")
                     print("New experiment with", _pkts, "packets and SF", _sf)
+                    oled_lines("LoRa testbed", mac[2:], wlan.ifconfig()[0], "ED", str(init))
                     lora.sleep()
                     lora.set_spreading_factor(_sf)
                     lora.set_frequency(freqs[0])
                     lora.standby()
                     _start_experiment = init
-            except:
-                print("wrong packet format!")
+            except Exception as e:
+                print("wrong packet format!", e)
 
 def generate_msg():
     msg = random.getrandbits(32) # just a random 4-byte int
@@ -149,13 +151,13 @@ def rx_handler(recv_pkg):
             if (id == dev_id) and (seq == last_seq):
                 rssi += lora.get_rssi()
                 ack = 1
-        except:
-            print("wrong GW packet format!")
+        except Exception as e:
+            print("wrong GW packet format!", e)
 
 dev_id = convert_mac(ubinascii.hexlify(wlan.config('mac')).decode())
 mac = ubinascii.hexlify(wlan.config('mac')).decode().upper()
 mac = ':'.join(mac[i:i+2] for i in range(0,12,2))
-oled_lines("LoRa testbed", mac[2:], wlan.ifconfig()[0], "ED")
+oled_lines("LoRa testbed", mac[2:], wlan.ifconfig()[0], "ED", " ")
 
 _thread.start_new_thread(wait_commands, ())
 
@@ -172,7 +174,7 @@ while(True):
         led.value(0)
         while(pkts <= _pkts and _start_experiment == 0):
             print("-------",pkts,"-------")
-            oled_lines("LoRa testbed", mac[2:], wlan.ifconfig()[0], str(pkts))
+            oled_lines("LoRa testbed", mac[2:], wlan.ifconfig()[0], "ED", str(pkts))
             data = generate_msg()
             cks = uhashlib.sha256(data)
             cks = cks.digest()
@@ -237,9 +239,12 @@ while(True):
             if delivered > 0:
                 rssi /= delivered
             stat_pkt = struct.pack('IIIf', dev_id, delivered, failed, rssi)
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.connect(('192.168.1.230', 8000))
-            s.send(stat_pkt)
-            s.close()
+            try:
+                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                s.connect(('192.168.1.230', 8000))
+                s.send(stat_pkt)
+                s.close()
+            except Exception as e:
+                print("Couldn't send out the stats,", e)
             time.sleep(5)
             reset()

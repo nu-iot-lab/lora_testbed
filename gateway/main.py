@@ -153,8 +153,8 @@ def wait_commands():
                     lora.recv()
                     airt1 = airtime(_sf,1,12,125)
                     airt2 = airtime(_rx2sf,1,12,125)
-            except:
-                print("wrong packet format!")
+            except Exception as e:
+                print("wrong packet format!", e)
 
 def permitted(ti, w):
     if (w == 1):
@@ -205,8 +205,8 @@ def rx_handler(recv_pkg):
                     print("Gateway unavailable!")
             else:
                 print("Checksum not valid!")
-        except:
-            print("wrong packet format!")
+        except Exception as e:
+            print("wrong packet format!", e)
 
 def scheduler():
     global lora, schedule, next_duty_cycle
@@ -236,8 +236,8 @@ def scheduler():
                     lora.set_frequency(freqs[0])
                 schedule.remove(schedule[0])
                 lora.recv()
-            except:
-                print("Something went wrong in scheduling")
+            except Exception as e:
+                print("Something went wrong in scheduling", e)
 
 airt1 = airtime(_sf,1,12,125)
 airt2 = airtime(_rx2sf,1,12,125)
