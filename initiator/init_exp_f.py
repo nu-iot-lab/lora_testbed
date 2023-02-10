@@ -5,6 +5,7 @@ import sys
 import struct
 import random
 
+
 PORT = 8000
 BUFFER_SIZE = 512
 assets = []
@@ -14,6 +15,11 @@ init = random.randint(1, 65535)
 with open("assets.txt") as file:
 	next(file)
 	assets = [l.rstrip() for l in file]
+
+# if the argument is 'U'
+# 	-> send webrepl command to each device (ED / GW)
+# 	-> wait 30" and then continue
+# else continue
 
 for asset in assets:
 	MESSAGE = bytes(0)

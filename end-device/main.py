@@ -105,7 +105,7 @@ def wifi_connect():
 def wait_commands():
     global lora, _start_experiment, _pkts, _sf, _rx2sf, _pkt_size, _period, _confirmed
     wifi_connect()
-    webrepl.start()
+    # webrepl.start()
     host = wlan.ifconfig()[0]
     port = 8000
     wlan_s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -118,19 +118,25 @@ def wait_commands():
         conn, addr = wlan_s.accept()
         data = conn.recv(512)
         if (len(data) > 2):
-            try:
-                (init, _pkts, _pkt_size, _period, _sf, _rx2sf, _confirmed) = struct.unpack('HiiiBBB', data)
-                if (init > 0):
-                    print("---------------------------------")
-                    print("New experiment with", _pkts, "packets and SF", _sf)
-                    oled_lines("LoRa testbed", mac[2:], wlan.ifconfig()[0], "ED", str(init))
-                    lora.sleep()
-                    lora.set_spreading_factor(_sf)
-                    lora.set_frequency(freqs[0])
-                    lora.standby()
-                    _start_experiment = init
-            except Exception as e:
-                print("wrong packet format!", e)
+            if (data[0] == "U"):
+                wlan_s.close()
+                webrepl.start()
+                time.sleep(1)
+                # check if the connection is active, otherwise reset()
+            else:
+                try:
+                    (init, _pkts, _pkt_size, _period, _sf, _rx2sf, _confirmed) = struct.unpack('HiiiBBB', data)
+                    if (init > 0):
+                        print("---------------------------------")
+                        print("New experiment with", _pkts, "packets and SF", _sf)
+                        oled_lines("LoRa testbed", mac[2:], wlan.ifconfig()[0], "ED", str(init))
+                        lora.sleep()
+                        lora.set_spreading_factor(_sf)
+                        lora.set_frequency(freqs[0])
+                        lora.standby()
+                        _start_experiment = init
+                except Exception as e:
+                    print("wrong packet format!", e)
 
 def generate_msg():
     msg = random.getrandbits(32) # just a random 4-byte int
