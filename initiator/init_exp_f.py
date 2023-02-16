@@ -5,7 +5,8 @@ import sys
 import struct
 import random
 import subprocess
-
+import shlex
+import time
 
 PORT = 8000
 BUFFER_SIZE = 512
@@ -36,6 +37,7 @@ if mode == 'U':
 		items = asset.split(" ")
 		print(asset)
 		IP = items[1]
+		reboot_command = 'python3 webrepl/webrepl_client.py -p 97079088 192.168.1.40 < <(echo -e "import machine" && echo -e "machine.reset()" && echo -e "exit")'
 		if (items[0] == 'GW'):
 			# launch send script with args for the GW
 
@@ -53,7 +55,13 @@ if mode == 'U':
 			for line in p.stdout:
 				print(line.decode("utf-8"))
 			p.wait()
-
+            print(" ######### REBOOT INITIATED  ###########   ")
+			reboot_process = subprocess.Popen(reboot_command ,shell = True, stdout = subprocess.PIPE, executable='/bin/bash')
+			time.sleep(3)
+			reboot_process.kill()
+			print(" ######### REBOOT FINISHED  ###########   ")
+            
+            
 		elif (items[0] == 'ED'):
 			# launch send script with args for the GW
 
@@ -71,6 +79,12 @@ if mode == 'U':
 			for line in p.stdout:
 				print(line.decode("utf-8"))
 			p.wait()
+			print(" ######### REBOOT INITIATED  ###########   ")
+			reboot_process = subprocess.Popen(reboot_command ,shell = True, stdout = subprocess.PIPE, executable='/bin/bash')
+			time.sleep(3)
+			reboot_process.kill()
+			print(" ######### REBOOT FINISHED  ###########   ")
+            
 		else:
 			continue
 
