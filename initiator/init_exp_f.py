@@ -12,7 +12,7 @@ BUFFER_SIZE = 512
 assets = []
 eds = 0
 init = random.randint(1, 65535)
-passwd = "qwerty"
+passwd = "97079088"
 
 with open("assets.txt") as file:
 	next(file)
@@ -48,13 +48,11 @@ if mode == 'U':
 			#print("#############################")
 			#print("Uploading to GW {path}".format(path = remote_path))
 			#print("#############################")
-			cmd = ['python3', 'webrepl_cli.py', '-p', passwd, src_file, remote_path]
+			cmd = ['python3', 'webrepl/webrepl_cli.py', '-p', passwd, src_file, remote_path]
 			p = subprocess.Popen(cmd, stdout = subprocess.PIPE)
 			for line in p.stdout:
 				print(line.decode("utf-8"))
 			p.wait()
-
-
 
 		elif (items[0] == 'ED'):
 			# launch send script with args for the GW
@@ -68,7 +66,7 @@ if mode == 'U':
 			#print("#############################")
 			#print("Uploading to GW {path}".format(path = remote_path))
 			#print("#############################")
-			cmd = ['python3', 'webrepl_cli.py', '-p', passwd, src_file, remote_path]
+			cmd = ['python3', 'webrepl/webrepl_cli.py', '-p', passwd, src_file, remote_path]
 			p = subprocess.Popen(cmd, stdout = subprocess.PIPE)
 			for line in p.stdout:
 				print(line.decode("utf-8"))
@@ -97,7 +95,7 @@ for asset in assets:
 	except:
 		print("Socket error!")
 
-'''
+
 print("\nWaiting for statistics\n")
 f = open("stats.txt", "w")
 a = 0
@@ -116,4 +114,3 @@ while (a < eds):
 		except:
 			print("wrong stat packet format!")
 f.close()
-'''
