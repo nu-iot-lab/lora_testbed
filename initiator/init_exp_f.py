@@ -55,7 +55,7 @@ if mode == 'U':
 			for line in p.stdout:
 				print(line.decode("utf-8"))
 			p.wait()
-            print(" ######### REBOOT INITIATED  ###########   ")
+			print(" ######### REBOOT INITIATED  ###########   ")
 			reboot_process = subprocess.Popen(reboot_command ,shell = True, stdout = subprocess.PIPE, executable='/bin/bash')
 			time.sleep(3)
 			reboot_process.kill()
