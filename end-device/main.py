@@ -1,5 +1,5 @@
 from machine import SoftI2C, Pin, SPI, reset, idle
-from lora import LoRa
+#from lora import LoRa
 import ssd1306
 import time
 from time import sleep
@@ -14,6 +14,8 @@ import sys
 import random
 import uhashlib
 import webrepl
+import select
+
 
 # led = Pin(25,Pin.OUT) # heltec V2
 led = Pin(2,Pin.OUT) # TTGO
@@ -46,19 +48,19 @@ spi = SPI(
 spi.init()
 
 # Setup LoRa
-lora = LoRa(
+'''lora = LoRa(
     spi,
     cs=Pin(CS, Pin.OUT),
     rx=Pin(RX, Pin.IN),
 )
-
+'''
 # some settings
 freqs = [868.1, 868.3, 868.5, 867.1, 867.3, 867.5, 867.7, 867.9]
 rx2freq = 869.525
-lora.set_spreading_factor(7)
-lora.set_frequency(freqs[0])
+#lora.set_spreading_factor(7)
+#lora.set_frequency(freqs[0])
 wlan = network.WLAN(network.STA_IF)
-lora.standby()
+#lora.standby()
 
 # some global variables (values will be overriden later)
 mac = "FFFFFFFFFFFF"
@@ -98,45 +100,49 @@ def wifi_connect():
     if not wlan.isconnected():
         print('connecting to network...')
 	random_sleep(10)
-        wlan.connect('IoTLab', '97079088')
+        wlan.connect('TP-Link_B953', '38398940')
         while not wlan.isconnected():
             pass
 
 def wait_commands():
     global lora, _start_experiment, _pkts, _sf, _rx2sf, _pkt_size, _period, _confirmed
     wifi_connect()
-    # webrepl.start()
+    webrepl.start()
+    time.sleep(5)
     host = wlan.ifconfig()[0]
     port = 8000
     wlan_s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    wlan_s.setblocking(False)
     wlan_s.bind((host, port))
     wlan_s.listen(5)
     print("Ready...")
     led.value(1)
     oled_lines("LoRa testbed", mac[2:], wlan.ifconfig()[0], "ED", " ")
+    poller = select.poll()
+    poller.register(wlan_s, select.POLLIN)
     while (True):
+        while (True):
+            events = poller.poll()
+            #print('events = ', events)
+            if events is not None:
+                break
         conn, addr = wlan_s.accept()
+        print(addr)
         data = conn.recv(512)
         if (len(data) > 2):
-            if (data[0] == "U"):
-                wlan_s.close()
-                webrepl.start()
-                time.sleep(1)
-                # check if the connection is active, otherwise reset()
-            else:
-                try:
-                    (init, _pkts, _pkt_size, _period, _sf, _rx2sf, _confirmed) = struct.unpack('HiiiBBB', data)
-                    if (init > 0):
-                        print("---------------------------------")
-                        print("New experiment with", _pkts, "packets and SF", _sf)
-                        oled_lines("LoRa testbed", mac[2:], wlan.ifconfig()[0], "ED", str(init))
-                        lora.sleep()
-                        lora.set_spreading_factor(_sf)
-                        lora.set_frequency(freqs[0])
-                        lora.standby()
-                        _start_experiment = init
-                except Exception as e:
-                    print("wrong packet format!", e)
+            try:
+                (init, _pkts, _pkt_size, _period, _sf, _rx2sf, _confirmed) = struct.unpack('HiiiBBB', data)
+                if (init > 0):
+                    print("---------------------------------")
+                    print("New experiment with", _pkts, "packets and SF", _sf)
+                    oled_lines("LoRa testbed", mac[2:], wlan.ifconfig()[0], "ED", str(init))
+                    lora.sleep()
+                    lora.set_spreading_factor(_sf)
+                    lora.set_frequency(freqs[0])
+                    lora.standby()
+                    _start_experiment = init
+            except Exception as e:
+                print("wrong packet format!", e)
 
 def generate_msg():
     msg = random.getrandbits(32) # just a random 4-byte int
@@ -189,34 +195,34 @@ while(True):
             print("ID =", hex(dev_id), "Data =", data, "Checksum =", int(cks, 16))
             last_seq = pkts
             data = struct.pack('IBII%ds' % len(data), dev_id, len(data), int(cks, 16), pkts, data)
-            lora.send(data)
+            #lora.send(data)
             last_trans = time.ticks_ms()
             print("transmitted at:", last_trans)
             ack = 0
             if (_confirmed):
                 time.sleep_ms(990)
-                lora.on_recv(rx_handler)
-                lora.recv_once()
+                #lora.on_recv(rx_handler)
+                #lora.recv_once()
                 recv_time = time.ticks_ms()
                 led.value(1)
                 print("Waiting in RX1 at:", time.ticks_ms())
                 timeout = 140*(_sf-7+1)
-                while(time.ticks_diff(time.ticks_ms(), recv_time) < timeout):
-                    if (lora._get_irq_flags()): # check if something is being received (RxTimeout should be used)
-                        timeout += 400
-                    if (ack):
-                        break
+                #while(time.ticks_diff(time.ticks_ms(), recv_time) < timeout):
+                    #if (lora._get_irq_flags()): # check if something is being received (RxTimeout should be used)
+                    #    timeout += 400
+                    #if (ack):
+                    #    break
                 if (ack):
                     delivered += 1
                     print("RX1 ack received!")
                 else:
-                    lora.sleep()
+                    #lora.sleep()
                     led.value(0)
                     print("No ack was received in RX1")
                     time.sleep_ms( time.ticks_diff(last_trans+1990, time.ticks_ms()) )
-                    lora.set_spreading_factor(_rx2sf)
-                    lora.set_frequency(rx2freq)
-                    lora.recv_once()
+                    #lora.set_spreading_factor(_rx2sf)
+                    #lora.set_frequency(rx2freq)
+                    #lora.recv_once()
                     recv_time = time.ticks_ms()
                     led.value(1)
                     print("Waiting in RX2 at:", time.ticks_ms())
@@ -230,10 +236,10 @@ while(True):
                     else:
                         failed += 1
                         print("No ack was received in RX2")
-            lora.set_spreading_factor(_sf)
-            lora.set_frequency(freqs[0])
+            #lora.set_spreading_factor(_sf)
+            #lora.set_frequency(freqs[0])
             led.value(0)
-            lora.sleep()
+            #lora.sleep()
             pkts += 1
             if (pkts <= _pkts): # just skip the last sleep time
                 # watch for duty cycle violations here
