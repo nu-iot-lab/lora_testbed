@@ -115,6 +115,7 @@ def wait_commands():
     led.value(1)
     oled_lines("LoRa testbed", mac[2:], wlan.ifconfig()[0], "ED", " ")
     while (True):
+        time.sleep(1)
         conn, addr = wlan_s.accept()
         data = conn.recv(512)
         if (len(data) > 2):
