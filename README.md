@@ -12,10 +12,11 @@
 -- The initiator script can be used on a PC to initiate an experiment with the devices listed in assets.txt
 
 `python3 init_exp_f.py -m U` will update all devices in assets.txt with the new main.py
+
 `python3 init_exp_f.py -m C` will initiate a new experiment with the devices and settings in assets.txt
 
 ## Achitecture:
-
+```
 ------    wifi   ----------
 | PC |-----------| Router |
 ------           ----------
@@ -31,3 +32,4 @@
 |   192.168.1.x          192.168.1.x   |
 |                                      |
 ----------------------------------------
+```
