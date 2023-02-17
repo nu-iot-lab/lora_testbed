@@ -1,12 +1,12 @@
 # LoRa testbed consisting of ESP32 devices
 
-## Features:
+## Features
 * Currently, the testbed consists of 1-channel gateways
 * 2 receive windows, 1 and 2 seconds after the uplink
 * 1% and 10% duty cycle for RX1 and RX2, respectively
 * Over-the-air update using webrepl (over wifi)
 
-## Setup:
+## Setup
 * The router's DHCP must be configured to give the same IP to specific MAC addresses.
 * assets.txt can be used to feed the devices with specific settings
 * The initiator script can be used on a PC to initiate an experiment with the devices listed in assets.txt
@@ -15,7 +15,7 @@
 
 `python3 init_exp_f.py -m C` will initiate a new experiment with the devices and settings in assets.txt
 
-## Achitecture:
+## Achitecture
 ```
 ------    wifi   ----------
 | PC |-----------| Router |
