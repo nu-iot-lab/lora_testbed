@@ -14,6 +14,8 @@ import sys
 import random
 import uhashlib
 import math
+import webrepl
+import select
 
 # led = Pin(25,Pin.OUT) # heltec V2
 led = Pin(2,Pin.OUT) # TTGO
@@ -125,13 +127,22 @@ def airtime(sf,cr,pl,bw):
 def wait_commands():
     global lora, _sf, _rx2sf, schedule, next_rx1, next_rx2, next_duty_cycle, airt1, airt2
     wifi_connect()
+    webrepl.start()
     host = wlan.ifconfig()[0]
     port = 8000
     wlan_s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    wlan_s.setblocking(False)
     wlan_s.bind((host, port))
     wlan_s.listen(5)
     print("Ready...")
+    poller = select.poll()
+    poller.register(wlan_s, select.POLLIN)
     while (True):
+        while (True):
+            events = poller.poll()
+            #print('events = ', events)
+            if events is not None:
+                break
         conn, addr = wlan_s.accept()
         data = conn.recv(512)
         if (len(data) > 2):
@@ -179,7 +190,7 @@ def permitted(ti, w):
 
 def rx_handler(recv_pkg):
     global schedule, next_duty_cycle, next_rx1, next_rx2
-    if (len(recv_pkg) > 2):
+    if (len(recv_pkg) > 4):
         recv_pkg_len = recv_pkg[4]
         # print(recv_pkg_len)
         try:
@@ -214,7 +225,9 @@ def scheduler():
         if len(schedule) > 0:
             try:
                 (tm, dev_id, seq, win) = schedule[0]
-                if (tm > time.ticks_ms() or tm < next_duty_cycle[win]):
+                if (tm < time.ticks_ms() or tm < next_duty_cycle[win]):
+                    print("skipping transmission")
+                    schedule.remove(schedule[0])
                     continue
                 print("picked up", tm, dev_id, seq, win)
                 ack_pkt = struct.pack('iii', gw_id, dev_id, seq)

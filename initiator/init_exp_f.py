@@ -36,54 +36,36 @@ if mode == 'U':
 		items = asset.split(" ")
 		print(asset)
 		IP = items[1]
-		reboot_command = 'python3 webrepl/webrepl_client.py -p 97079088 192.168.1.40 < <(echo -e "import machine" && echo -e "machine.reset()" && echo -e "exit")'
+		reboot_command = 'python3 webrepl/webrepl_client.py -p 97079088 '+str(IP)+' < <(echo -e "import machine" && echo -e "machine.reset()" && echo -e "exit")'
 		if (items[0] == 'GW'):
-			# launch send script with args for the GW
-
-			#src_file = "SOURCE_FILE_NAME"
-			#remote_path = IP + ":/" + "REMOTE_FILE_NAME"
-
-			src_file = "cool.txt"
-			remote_path = IP + ":/" + "remote_cool.txt"
-
-			#print("#############################")
-			#print("Uploading to GW {path}".format(path = remote_path))
-			#print("#############################")
+			src_file = "../gateway/main.py"
+			remote_path = IP + ":/" + "main.py"
+			# reboot
 			cmd = ['python3', 'webrepl/webrepl_cli.py', '-p', passwd, src_file, remote_path]
 			p = subprocess.Popen(cmd, stdout = subprocess.PIPE)
 			for line in p.stdout:
 				print(line.decode("utf-8"))
 			p.wait()
-			print(" ######### REBOOT INITIATED  ###########   ")
 			reboot_process = subprocess.Popen(reboot_command ,shell = True, stdout = subprocess.PIPE, executable='/bin/bash')
 			time.sleep(3)
 			reboot_process.kill()
-			print(" ######### REBOOT FINISHED  ###########   ")
 		elif (items[0] == 'ED'):
-			# launch send script with args for the GW
-
-			#src_file = "SOURCE_FILE_NAME"
-			#remote_path = IP + ":/" + "REMOTE_FILE_NAME"
-
-			src_file = "cool.txt"
-			remote_path = IP + ":/" + "remote_cool.txt"
-
-			#print("#############################")
-			#print("Uploading to GW {path}".format(path = remote_path))
-			#print("#############################")
+			src_file = "../end-device/main.py"
+			remote_path = IP + ":/" + "main.py"
+			# reboot
 			cmd = ['python3', 'webrepl/webrepl_cli.py', '-p', passwd, src_file, remote_path]
 			p = subprocess.Popen(cmd, stdout = subprocess.PIPE)
 			for line in p.stdout:
 				print(line.decode("utf-8"))
 			p.wait()
-			print(" ######### REBOOT INITIATED  ###########   ")
 			reboot_process = subprocess.Popen(reboot_command ,shell = True, stdout = subprocess.PIPE, executable='/bin/bash')
 			time.sleep(3)
 			reboot_process.kill()
-			print(" ######### REBOOT FINISHED  ###########   ")
 		else:
 			continue
+	time.sleep(10)
 elif mode == 'C':
+	print("\nNew experiment with id:", init)
 	for asset in assets:
 		MESSAGE = bytes(0)
 		print(asset)
@@ -124,3 +106,4 @@ elif mode == 'C':
 			except:
 				print("wrong stat packet format!")
 	f.close()
+	s.close()

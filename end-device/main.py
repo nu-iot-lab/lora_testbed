@@ -66,6 +66,7 @@ lora.standby()
 mac = "FFFFFFFFFFFF"
 dev_id = 1000000
 last_seq = -1
+init = 0
 _start_experiment = 0
 _pkts = 10
 _pkt_size = 16
@@ -105,7 +106,7 @@ def wifi_connect():
             pass
 
 def wait_commands():
-    global lora, _start_experiment, _pkts, _sf, _rx2sf, _pkt_size, _period, _confirmed
+    global init, lora, _start_experiment, _pkts, _sf, _rx2sf, _pkt_size, _period, _confirmed
     wifi_connect()
     webrepl.start()
     time.sleep(5)
@@ -186,7 +187,7 @@ while(True):
         led.value(0)
         while(pkts <= _pkts and _start_experiment == 0):
             print("-------",pkts,"-------")
-            oled_lines("LoRa testbed", mac[2:], wlan.ifconfig()[0], "ED", str(pkts))
+            oled_lines("LoRa testbed", mac[2:], wlan.ifconfig()[0], "ED", str(init)+" "+str(pkts))
             data = generate_msg()
             cks = uhashlib.sha256(data)
             cks = cks.digest()
@@ -248,6 +249,7 @@ while(True):
 
         if (_start_experiment == 0):
             print("I am sending stats...")
+            random_sleep(5)
             if delivered > 0:
                 rssi /= delivered
             stat_pkt = struct.pack('IIIf', dev_id, delivered, failed, rssi)
@@ -258,5 +260,5 @@ while(True):
                 s.close()
             except Exception as e:
                 print("Couldn't send out the stats,", e)
-            time.sleep(5)
+            time.sleep(10)
             reset()
