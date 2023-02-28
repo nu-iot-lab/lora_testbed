@@ -170,6 +170,7 @@ def rx_handler(recv_pkg):
 dev_id = convert_mac(ubinascii.hexlify(wlan.config('mac')).decode())
 mac = ubinascii.hexlify(wlan.config('mac')).decode().upper()
 mac = ':'.join(mac[i:i+2] for i in range(0,12,2))
+print("MAC =", mac)
 oled_lines("LoRa testbed", mac[2:], wlan.ifconfig()[0], "ED", " ")
 
 _thread.start_new_thread(wait_commands, ())
@@ -220,23 +221,26 @@ while(True):
                     lora.sleep()
                     led.value(0)
                     print("No ack was received in RX1")
-                    time.sleep_ms( time.ticks_diff(last_trans+1990, time.ticks_ms()) )
-                    lora.set_spreading_factor(_rx2sf)
-                    lora.set_frequency(rx2freq)
-                    lora.recv_once()
-                    recv_time = time.ticks_ms()
-                    led.value(1)
-                    print("Waiting in RX2 at:", time.ticks_ms())
-                    timeout = 500
-                    while(time.ticks_diff(time.ticks_ms(), recv_time) < timeout):
-                        if (ack):
-                            break
-                    if (ack):
-                        delivered += 1
-                        print("RX2 ack received!")
+                    if (_rx2sf < _sf):
+                        print("RX2 SF higher than uplink SF")
                     else:
-                        failed += 1
-                        print("No ack was received in RX2")
+                        time.sleep_ms( time.ticks_diff(last_trans+1990, time.ticks_ms()) )
+                        lora.set_spreading_factor(_rx2sf)
+                        lora.set_frequency(rx2freq)
+                        lora.recv_once()
+                        recv_time = time.ticks_ms()
+                        led.value(1)
+                        print("Waiting in RX2 at:", time.ticks_ms())
+                        timeout = 500
+                        while(time.ticks_diff(time.ticks_ms(), recv_time) < timeout):
+                            if (ack):
+                                break
+                        if (ack):
+                            delivered += 1
+                            print("RX2 ack received!")
+                        else:
+                            failed += 1
+                            print("No ack was received in RX2")
             lora.set_spreading_factor(_sf)
             lora.set_frequency(freqs[0])
             led.value(0)
