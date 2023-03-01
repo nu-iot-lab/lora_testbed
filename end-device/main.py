@@ -1,4 +1,4 @@
-from machine import SoftI2C, Pin, SPI, reset, idle
+from machine import SoftI2C, Pin, SPI, reset, idle, freq
 from lora import LoRa
 import ssd1306
 import time
@@ -15,8 +15,9 @@ import random
 import uhashlib
 import webrepl
 import select
+from chrono import Chrono
 
-
+freq(80000000)
 # led = Pin(25,Pin.OUT) # heltec V2
 led = Pin(2,Pin.OUT) # TTGO
 rst = Pin(16, Pin.OUT)
@@ -68,12 +69,13 @@ dev_id = 1000000
 last_seq = -1
 init = 0
 _start_experiment = 0
-_pkts = 10
+_exp_time = 3600
 _pkt_size = 16
 _period = 10
 _sf = 7
 _rx2sf = 9
 _confirmed = 1
+max_retries = 1
 
 ### --- FUNCTIONS --- ###
 def random_sleep(max_sleep):
@@ -106,7 +108,7 @@ def wifi_connect():
             pass
 
 def wait_commands():
-    global init, lora, _start_experiment, _pkts, _sf, _rx2sf, _pkt_size, _period, _confirmed
+    global init, lora, _start_experiment, _exp_time, _sf, _rx2sf, _pkt_size, _period, _confirmed
     wifi_connect()
     webrepl.start()
     time.sleep(5)
@@ -132,10 +134,10 @@ def wait_commands():
         data = conn.recv(512)
         if (len(data) > 2):
             try:
-                (init, _pkts, _pkt_size, _period, _sf, _rx2sf, _confirmed) = struct.unpack('HiiiBBB', data)
+                (init, _exp_time, _pkt_size, _period, _sf, _rx2sf, _confirmed) = struct.unpack('HiiiBBB', data)
                 if (init > 0):
                     print("---------------------------------")
-                    print("New experiment with", _pkts, "packets and SF", _sf)
+                    print("New experiment for", _exp_time, "secs and SF", _sf)
                     oled_lines("LoRa testbed", mac[2:], wlan.ifconfig()[0], "ED", str(init))
                     lora.sleep()
                     lora.set_spreading_factor(_sf)
@@ -177,6 +179,9 @@ _thread.start_new_thread(wait_commands, ())
 
 while(True):
     if (_start_experiment):
+        chrono = Chrono()
+        chrono.start()
+        start = chrono.read()
         print("Random sleep time")
         random_sleep(_period)
         lora.standby()
@@ -186,18 +191,22 @@ while(True):
         rssi = 0.0
         _start_experiment = 0
         led.value(0)
-        while(pkts <= _pkts and _start_experiment == 0):
-            print("-------",pkts,"-------")
+        f = 0
+        retries = 0
+        runn = 1
+        while(runn == 1 and _start_experiment == 0):
+            print("-------", pkts, chrono.read()-start, "-------")
             oled_lines("LoRa testbed", mac[2:], wlan.ifconfig()[0], "ED", str(init)+" "+str(pkts))
-            data = generate_msg()
+            if (f == 0):
+                data = generate_msg()
             cks = uhashlib.sha256(data)
             cks = cks.digest()
             cks = ubinascii.hexlify(cks)
             cks = cks.decode()[:8]
             print("ID =", hex(dev_id), "Data =", data, "Checksum =", int(cks, 16))
             last_seq = pkts
-            data = struct.pack('IBII%ds' % len(data), dev_id, len(data), int(cks, 16), pkts, data)
-            lora.send(data)
+            pkt = struct.pack('IBII%ds' % len(data), dev_id, len(data), int(cks, 16), pkts, data)
+            lora.send(pkt)
             last_trans = time.ticks_ms()
             print("transmitted at:", last_trans)
             ack = 0
@@ -216,6 +225,8 @@ while(True):
                         break
                 if (ack):
                     delivered += 1
+                    retries = 0
+                    f = 0
                     print("RX1 ack received!")
                 else:
                     lora.sleep()
@@ -237,19 +248,32 @@ while(True):
                                 break
                         if (ack):
                             delivered += 1
+                            retries = 0
+                            f = 0
                             print("RX2 ack received!")
                         else:
-                            failed += 1
+                            f = 1
                             print("No ack was received in RX2")
             lora.set_spreading_factor(_sf)
             lora.set_frequency(freqs[0])
             led.value(0)
             lora.sleep()
             pkts += 1
-            if (pkts <= _pkts): # just skip the last sleep time
+            if (chrono.read() - start < _exp_time) and (f == 0): # just skip the last sleep time
                 # watch for duty cycle violations here
                 time.sleep_ms(_period*1000)
                 random_sleep(1) # sleep for some random time as well
+            elif (chrono.read() - start < _exp_time) and (f == 1):
+                if (retries < max_retries):
+                    pkts -= 1
+                    retries += 1
+                    random_sleep(5) # in case of a failure -> retransmit (TODO: follow duty cycle rules)
+                else:
+                    retries = 0
+                    failed += 1
+                    f = 0
+            if (chrono.read() - start >= _exp_time):
+                runn = 0
 
         if (_start_experiment == 0):
             print("I am sending stats...")

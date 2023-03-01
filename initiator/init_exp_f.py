@@ -40,26 +40,24 @@ if mode == 'U':
 		if (items[0] == 'GW'):
 			src_file = "../gateway/main.py"
 			remote_path = IP + ":/" + "main.py"
-			# reboot
 			cmd = ['python3', 'webrepl/webrepl_cli.py', '-p', passwd, src_file, remote_path]
 			p = subprocess.Popen(cmd, stdout = subprocess.PIPE)
 			for line in p.stdout:
 				print(line.decode("utf-8"))
 			p.wait()
 			reboot_process = subprocess.Popen(reboot_command ,shell = True, stdout = subprocess.PIPE, executable='/bin/bash')
-			time.sleep(3)
+			time.sleep(2)
 			reboot_process.kill()
 		elif (items[0] == 'ED'):
 			src_file = "../end-device/main.py"
 			remote_path = IP + ":/" + "main.py"
-			# reboot
 			cmd = ['python3', 'webrepl/webrepl_cli.py', '-p', passwd, src_file, remote_path]
 			p = subprocess.Popen(cmd, stdout = subprocess.PIPE)
 			for line in p.stdout:
 				print(line.decode("utf-8"))
 			p.wait()
 			reboot_process = subprocess.Popen(reboot_command ,shell = True, stdout = subprocess.PIPE, executable='/bin/bash')
-			time.sleep(3)
+			time.sleep(2)
 			reboot_process.kill()
 		else:
 			continue
@@ -89,18 +87,18 @@ elif mode == 'C':
 
 
 	print("\nWaiting for statistics\n")
-	f = open("stats.txt", "w")
-	a = 0
+	f = open("stats"+str(init)+".txt", "w")
+	a = 1
 	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	s.bind(('192.168.1.230', PORT))
 	s.listen(50)
-	while (a < eds):
+	while (a <= eds):
 		(conn, addr) = s.accept()
 		data = conn.recv(512)
 		if (len(data) > 10):
 			try:
 				(id, deliv, fail, rssi) = struct.unpack('IIIf', data)
-				print(hex(id), deliv, fail, rssi)
+				print(str(a)+".", hex(id), deliv, fail, rssi)
 				f.write( "%s: %s %s %s\n" % ( hex(id), str(deliv), str(fail), str(rssi) ) )
 				a += 1
 			except:
