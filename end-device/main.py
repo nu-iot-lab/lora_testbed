@@ -15,7 +15,6 @@ import random
 import uhashlib
 import webrepl
 import select
-from chrono import Chrono
 
 freq(80000000)
 # led = Pin(25,Pin.OUT) # heltec V2
@@ -179,9 +178,7 @@ _thread.start_new_thread(wait_commands, ())
 
 while(True):
     if (_start_experiment):
-        chrono = Chrono()
-        chrono.start()
-        start = chrono.read()
+        start_exp = time.time()
         print("Random sleep time")
         random_sleep(_period)
         lora.standby()
@@ -195,7 +192,7 @@ while(True):
         retries = 0
         runn = 1
         while(runn == 1 and _start_experiment == 0):
-            print("-------", pkts, chrono.read()-start, "-------")
+            print("-------", pkts, time.time()-start_exp, "-------")
             oled_lines("LoRa testbed", mac[2:], wlan.ifconfig()[0], "ED", str(init)+" "+str(pkts))
             if (f == 0):
                 data = generate_msg()
@@ -259,11 +256,11 @@ while(True):
             led.value(0)
             lora.sleep()
             pkts += 1
-            if (chrono.read() - start < _exp_time) and (f == 0): # just skip the last sleep time
+            if (time.time() - start_exp < _exp_time) and (f == 0): # just skip the last sleep time
                 # watch for duty cycle violations here
                 time.sleep_ms(_period*1000)
                 random_sleep(1) # sleep for some random time as well
-            elif (chrono.read() - start < _exp_time) and (f == 1):
+            elif (time.time() - start_exp < _exp_time) and (f == 1):
                 if (retries < max_retries):
                     pkts -= 1
                     retries += 1
@@ -272,7 +269,8 @@ while(True):
                     retries = 0
                     failed += 1
                     f = 0
-            if (chrono.read() - start >= _exp_time):
+            if (time.time() - start_exp >= _exp_time):
+                print(time.time(), start_exp, _exp_time)
                 runn = 0
 
         if (_start_experiment == 0):

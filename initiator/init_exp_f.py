@@ -45,7 +45,7 @@ if mode == 'U':
 			for line in p.stdout:
 				print(line.decode("utf-8"))
 			p.wait()
-			reboot_process = subprocess.Popen(reboot_command ,shell = True, stdout = subprocess.PIPE, executable='/bin/bash')
+			reboot_process = subprocess.Popen(reboot_command, shell = True, stdout = subprocess.PIPE, executable='/bin/bash')
 			time.sleep(2)
 			reboot_process.kill()
 		elif (items[0] == 'ED'):
@@ -56,7 +56,7 @@ if mode == 'U':
 			for line in p.stdout:
 				print(line.decode("utf-8"))
 			p.wait()
-			reboot_process = subprocess.Popen(reboot_command ,shell = True, stdout = subprocess.PIPE, executable='/bin/bash')
+			reboot_process = subprocess.Popen(reboot_command, shell = True, stdout = subprocess.PIPE, executable='/bin/bash')
 			time.sleep(2)
 			reboot_process.kill()
 		else:
