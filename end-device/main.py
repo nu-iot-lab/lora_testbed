@@ -15,6 +15,11 @@ import random
 import uhashlib
 import webrepl
 import select
+import esp32
+
+tempC = (esp32.raw_temperature()-32)*5/9
+print("Temperature =", tempC)
+esp32.ULP()
 
 freq(80000000)
 # led = Pin(25,Pin.OUT) # heltec V2
