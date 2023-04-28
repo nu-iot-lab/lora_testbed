@@ -51,11 +51,9 @@ def handle_client_connection(client_socket):
             airt = airtime(sf,1,12,125)
             next_dc[1] = recv_time + rw + 99*airt
             print ("Scheduled", hex(gid), seq, sf, "for RW1")
-            mutex.release()
         elif (recv_time+2 > next_dc[2]):
             rw = 2
             airt = airtime(rx2sf,1,12,125)
-            mutex.acquire()
             next_dc[2] = recv_time + rw + 9*airt
             print ("Scheduled", hex(gid), seq, sf, "for RW2")
         else:
