@@ -1,27 +1,19 @@
-from machine import SoftI2C, Pin, SPI, reset, idle, freq
+from machine import SoftI2C, Pin, SPI, reset, freq
 from lora import LoRa
 import ssd1306
 import time
-from time import sleep
 import socket
 import struct
 import network
 import ubinascii
-import uos
 import _thread
-import uerrno
-import sys
 import random
 import uhashlib
 import webrepl
 import select
 import esp32
 
-tempC = (esp32.raw_temperature()-32)*5/9
-print("Temperature =", tempC)
-esp32.ULP()
-
-freq(80000000)
+# freq(80000000)
 # led = Pin(25,Pin.OUT) # heltec V2
 led = Pin(2,Pin.OUT) # TTGO
 rst = Pin(16, Pin.OUT)

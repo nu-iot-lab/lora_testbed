@@ -1,16 +1,13 @@
-from machine import SoftI2C, Pin, SPI, reset, idle
+from machine import SoftI2C, Pin, SPI, reset
 from lora import LoRa
 import ssd1306
 import time
-from time import sleep
 import socket
 import struct
 import network
 import ubinascii
-import uos
 import _thread
 import uerrno
-import sys
 import random
 import uhashlib
 import math
@@ -59,17 +56,13 @@ freqs = [868.1, 868.3, 868.5, 867.1, 867.3, 867.5, 867.7, 867.9]
 rx2freq = 869.525
 lora.set_spreading_factor(7)
 lora.set_frequency(freqs[0])
+lora.set_crc(True)
 wlan = network.WLAN(network.STA_IF)
 
 # some global variables (values will be overriden later)
 mac = "FFFFFFFFFFFF"
-gw_id = 1000000
+gw_id = 1000000 # will be set up later
 schedule = []
-next_rx1 = 0.0
-next_rx2 = 0.0
-next_duty_cycle = {}
-next_duty_cycle[1] = 0.0
-next_duty_cycle[2] = 1.0
 _sf = 7
 _rx2sf = 9
 received = 0
@@ -126,7 +119,7 @@ def airtime(sf,cr,pl,bw):
     return Tpream + Tpayload
 
 def wait_commands():
-    global lora, _sf, _rx2sf, schedule, next_rx1, next_rx2, next_duty_cycle, airt1, airt2, received
+    global lora, _sf, _rx2sf, schedule, received
     wifi_connect()
     webrepl.start()
     host = wlan.ifconfig()[0]
@@ -155,44 +148,43 @@ def wait_commands():
                     oled_lines("LoRa testbed", mac[2:], wlan.ifconfig()[0], "GW", str(init))
                     lora.sleep()
                     schedule = []
-                    next_duty_cycle = {}
-                    next_rx1 = 0.0
-                    next_rx2 = 0.0
-                    next_duty_cycle[1] = 0.0
-                    next_duty_cycle[2] = 1.0
+                    # next_duty_cycle = {}
+                    # next_rx1 = 0.0
+                    # next_rx2 = 0.0
+                    # next_duty_cycle[1] = 0.0
+                    # next_duty_cycle[2] = 1.0
                     lora.set_spreading_factor(_sf)
                     lora.set_frequency(freqs[0])
                     lora.recv()
-                    airt1 = airtime(_sf,1,12,125)
-                    airt2 = airtime(_rx2sf,1,12,125)
+                    # airt1 = airtime(_sf,1,12,125)
+                    # airt2 = airtime(_rx2sf,1,12,125)
                     received = 0
             except Exception as e:
                 print("wrong packet format!", e)
 
-def permitted(ti, w):
-    if (w == 1):
-        if (ti < next_duty_cycle[1]):
-            return 0
-        tj = ti + airt1
-        t1 = next_rx2
-        t2 = t1 + airt2
-        if ( (ti >= t1 and ti <= t2) or (tj <= t2 and tj >= t1) or (ti == t1 and tj == t2) ):
-            return 0
-    elif (w == 2):
-        if (ti < next_duty_cycle[2]):
-            return 0
-        tj = ti + airt2
-        t1 = next_rx1
-        t2 = t1 + airt1
-        if ( (ti >= t1 and ti <= t2) or (tj <= t2 and tj >= t1) or (ti == t1 and tj == t2) ):
-            return 0
-    return 1
+# def permitted(ti, w):
+#     if (w == 1):
+#         if (ti < next_duty_cycle[1]):
+#             return 0
+#         tj = ti + airt1
+#         t1 = next_rx2
+#         t2 = t1 + airt2
+#         if ( (ti >= t1 and ti <= t2) or (tj <= t2 and tj >= t1) or (ti == t1 and tj == t2) ):
+#             return 0
+#     elif (w == 2):
+#         if (ti < next_duty_cycle[2]):
+#             return 0
+#         tj = ti + airt2
+#         t1 = next_rx1
+#         t2 = t1 + airt1
+#         if ( (ti >= t1 and ti <= t2) or (tj <= t2 and tj >= t1) or (ti == t1 and tj == t2) ):
+#             return 0
+#     return 1
 
 def rx_handler(recv_pkg):
-    global schedule, next_duty_cycle, next_rx1, next_rx2, received
+    global schedule, received
     if (len(recv_pkg) > 4):
         recv_pkg_len = recv_pkg[4]
-        # print(recv_pkg_len)
         try:
             print("---")
             (dev_id, leng, cks, seq, msg) = struct.unpack('IBII%ds' % recv_pkg_len, recv_pkg)
@@ -207,63 +199,86 @@ def rx_handler(recv_pkg):
             if (int(cks_,16) == cks):
                 received += 1
                 # schedule an ack if the ack does not collide with other transmissions and there are available resources
-                if (permitted(recv_time+1000, 1) == 1):
-                    schedule.append([recv_time+1000, dev_id, seq, 1])
-                    next_rx1 = recv_time+1000
-                    print("RX1 ok")
+                # if (permitted(recv_time+1000, 1) == 1):
+                #     schedule.append([recv_time+1000, dev_id, seq, 1])
+                #     next_rx1 = recv_time+1000
+                #     print("RX1 ok")
+                # else:
+                #     print("No duty cycle resources available in RX1")
+                #     print("Trying RX2")
+                #     if (permitted(recv_time+2000, 2) == 1):
+                #         schedule.append([recv_time+2000, dev_id, seq, 2])
+                #         next_rx2 = recv_time+2000
+                #         print("RX2 ok")
+                #     else:
+                #         print("No duty cycle resources available in RX2")
+                #         print("Gateway unavailable!")
+
+                # send data to net-server
+                try:
+                    wlan_s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    wlan_s.connect(('192.168.1.230', 8001))
+                except Exception as e:
+                    print("Connection to RPi failed!", e)
+                    wlan_s.close()
                 else:
-                    print("No duty cycle resources available in RX1")
-                    print("Trying RX2")
-                    if (permitted(recv_time+2000, 2) == 1):
-                        schedule.append([recv_time+2000, dev_id, seq, 2])
-                        next_rx2 = recv_time+2000
-                        print("RX2 ok")
+                    pkg = struct.pack('IIIB', gw_id, int(dev_id), seq, _sf)
+                    wlan_s.send(pkg)
+                    msg = wlan_s.recv(512)
+                    win = 0
+                    try:
+                        (rgw_id, rdev_id, rseq, win) = struct.unpack('IIIB', msg)
+                        print("Received from RPi:", rgw_id, rdev_id, rseq, win)
+                    except Exception as e:
+                        print("wrong RPi packet format!", e)
+                        wlan_s.close()
+                        led.value(0)
                     else:
-                        print("No duty cycle resources available in RX2")
-                        print("Gateway unavailable!")
+                        if (rgw_id == gw_id) and (rdev_id == dev_id) and (rseq == seq):
+                            if (win > 0):
+                                schedule.append([recv_time+1000*int(win), dev_id, seq, int(win)])
+                                print("RW"+str(win)+" ok")
+                            else:
+                                print("Gateway unavailable!")
+                        wlan_s.close()
             else:
                 print("Checksum not valid!")
         except Exception as e:
             print("wrong packet format!", e)
 
 def scheduler():
-    global lora, schedule, next_duty_cycle
-    while(1):
-        time.sleep(0.5)
+    global lora, schedule
+    while True:
+        # time.sleep(0.1)
         if len(schedule) > 0:
             try:
                 (tm, dev_id, seq, win) = schedule[0]
-                if (tm < time.ticks_ms() or tm < next_duty_cycle[win]):
+                if (tm < time.ticks_ms()):
                     print("skipping transmission")
                     schedule.remove(schedule[0])
                     continue
-                print("picked up", tm, dev_id, seq, win)
-                ack_pkt = struct.pack('iii', gw_id, dev_id, seq)
+                print("Picked up", tm, dev_id, seq, win)
+                ack_pkt = struct.pack('III', gw_id, dev_id, seq)
                 if (win == 2):
-                    # lora.sleep()
                     lora.set_spreading_factor(_rx2sf)
                     lora.set_frequency(rx2freq)
                     lora.standby()
                 while(time.ticks_diff(tm, time.ticks_ms()) > 0):
-                    idle()
-                    # print(".", end="")
-                print("Sending ack to", hex(dev_id), "at", time.ticks_ms(), "( RX", win, ")")
+                    pass
+                print("...sending ack to", hex(dev_id), "at", time.ticks_ms(), "( RW", win, ")")
                 lora.send(ack_pkt)
-                # lora.sleep()
-                if (win == 1):
-                    next_duty_cycle[1] = time.ticks_ms()+99*airt1
-                elif (win == 2):
-                    next_duty_cycle[2] = time.ticks_ms()+9*airt2
+                if (win == 2):
                     lora.set_spreading_factor(_sf)
                     lora.set_frequency(freqs[0])
                 schedule.remove(schedule[0])
                 lora.recv()
+                print("......done")
             except Exception as e:
                 print("Something went wrong in scheduling", e)
                 lora.recv()
 
-airt1 = airtime(_sf,1,12,125)
-airt2 = airtime(_rx2sf,1,12,125)
+# airt1 = airtime(_sf,1,12,125)
+# airt2 = airtime(_rx2sf,1,12,125)
 gw_id = convert_mac(ubinascii.hexlify(wlan.config('mac')).decode())
 lora.on_recv(rx_handler)
 lora.recv()
