@@ -1,10 +1,14 @@
 # LoRa testbed consisting of ESP32 devices
 
+The testbed consists of 1-channel and SF gateways which all together emulate a single channel / all SFs gateway (GW) with the help of Network Server.
+The hardware is based on LILYGO TTGO v1.2 and/or Heltec LoRa v2.
+
 ## Features
-* Currently, the testbed consists of 1-channel gateways
-* 2 receive windows, 1 and 2 seconds after the uplink
-* 1% and 10% duty cycle for RX1 and RX2, respectively
-* Over-the-air update using webrepl (over wifi)
+* 2 receive windows (RW), 1 and 2 seconds after the uplink
+* 1% and 10% duty cycle for RW1 and RW2, respectively (for the entire emulated GW)
+* Configurable ED/GW and experiment settings
+* Experiment initialization and statistics collection script
+* Over-the-air updates for all EDs and GWs using webrepl (over wifi)
 
 ## Setup
 * The router's DHCP must be configured to give the same IP to specific MAC addresses.
