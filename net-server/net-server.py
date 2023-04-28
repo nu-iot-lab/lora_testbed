@@ -45,10 +45,10 @@ def handle_client_connection(client_socket):
     else:
         # check duty cycle and RW availability
         rw = 0
+        mutex.acquire()
         if (recv_time+1 > next_dc[1]):
             rw = 1
             airt = airtime(sf,1,12,125)
-            mutex.acquire()
             next_dc[1] = recv_time + rw + 99*airt
             print ("Scheduled", hex(gid), seq, sf, "for RW1")
             mutex.release()
@@ -58,11 +58,11 @@ def handle_client_connection(client_socket):
             mutex.acquire()
             next_dc[2] = recv_time + rw + 9*airt
             print ("Scheduled", hex(gid), seq, sf, "for RW2")
-            mutex.release()
         else:
             print ("No resources available for", hex(gid), "SF", sf)
         resp = struct.pack('IIIB', gid, nid, seq, rw)
         client_socket.send(resp)
+        mutex.release()
         client_socket.close()
 
 while True:
