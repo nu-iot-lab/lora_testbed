@@ -50,7 +50,7 @@ def handle_client_connection(client_socket):
         for dl in downlinks:
             if (recv_time > dl[0] and recv_time < dl[1]): # cannot accept uplinks during downlink time
                 clash = 1
-            if (recv_time - 5*10e9 > dl[1]): # keep items in the list for 5sec min
+            if (recv_time + 5*10e9 < dl[1]): # keep items in the list for 5sec min
                 downlinks.remove(dl)
         if clash == 0:
             mutex.acquire(timeout=2)
