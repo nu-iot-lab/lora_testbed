@@ -56,6 +56,7 @@ freqs = [868.1, 868.3, 868.5, 867.1, 867.3, 867.5, 867.7, 867.9]
 rx2freq = 869.525
 lora.set_spreading_factor(7)
 lora.set_frequency(freqs[0])
+lora.set_crc(True)
 wlan = network.WLAN(network.STA_IF)
 lora.standby()
 

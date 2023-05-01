@@ -13,11 +13,13 @@ server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.bind((bind_ip, bind_port))
 server.listen(10)
 
-next_dc = {}
-next_dc[1] = time.time()
-next_dc[2] = time.time()
+next_dc = {} # next available radio duty cycle per window
+next_dc[1] = 0
+next_dc[2] = 0
 rx2sf = 9
-mutex = threading.Lock()
+mutex = threading.Lock() # only 1 gw has access to transmitting resources
+next_transm = 0 # it is used to avoid having two or more gws transmitting at the same time
+downlinks = [] # holds downlink tuples (start, end) of transmission
 
 def airtime(sf,cr,pl,bw):
     H = 0        # implicit header disabled (H=0) or not (H=1)
@@ -31,33 +33,45 @@ def airtime(sf,cr,pl,bw):
     Tpream = (Npream + 4.25)*Tsym
     payloadSymbNB = 8 + max(math.ceil((8.0*pl-4.0*sf+28+16-20*H)/(4.0*(sf-2*DE)))*(cr+4),0)
     Tpayload = payloadSymbNB * Tsym
-    return (Tpream + Tpayload)/1000 # this will return secs!
+    return (Tpream + Tpayload)*10e6 # convert to ns
 
 def handle_client_connection(client_socket):
-    global next_dc
+    global next_dc, next_transm, downlinks
     request = client_socket.recv(512)
-    recv_time = time.time()
     try:
-        (gid, nid, seq, sf) = struct.unpack('IIIB', request)
-        print ("Received from:", hex(gid), seq, sf)
+        (gid, nid, seq, sf, recv_time) = struct.unpack('IIIBQ', request)
+        print ("Received from:", hex(gid), seq, sf, recv_time)
     except Exception as e:
         print ("Could not unpack", e)
     else:
-        # check duty cycle and RW availability
+        # check duty cycle and transmission availability
         rw = 0
-        mutex.acquire()
-        if (recv_time+1 > next_dc[1]):
-            rw = 1
-            airt = airtime(sf,1,12,125)
-            next_dc[1] = recv_time + rw + 99*airt
-            print ("Scheduled", hex(gid), seq, sf, "for RW1")
-        elif (recv_time+2 > next_dc[2]):
-            rw = 2
-            airt = airtime(rx2sf,1,12,125)
-            next_dc[2] = recv_time + rw + 9*airt
-            print ("Scheduled", hex(gid), seq, sf, "for RW2")
-        else:
-            print ("No resources available for", hex(gid), "SF", sf)
+        clash = 0
+        for dl in downlinks:
+            if (recv_time > dl[0] and recv_time < dl[1]): # cannot accept uplinks during downlink time
+                clash = 1
+            if (recv_time - 5*10e9 > dl[1]): # keep items in the list for 5sec min
+                downlinks.remove(dl)
+        if clash > 0:
+            mutex.acquire(timeout=2)
+            if (recv_time+1*10e9 > next_dc[1]):
+                rw = 1
+                airt = airtime(sf,1,12,125)
+                if (recv_time+rw*10e9+airt > next_transm): 
+                    next_dc[1] = recv_time + rw*10e9 + 99*airt
+                    next_transm = recv_time+rw*10e9+airt
+                    downlinks.append([recv_time+rw*10e9, recv_time+rw*10e9+airt])
+                    print ("Scheduled", hex(gid), seq, sf, "for RW1")
+            elif (recv_time+2*10e9 > next_dc[2]):
+                rw = 2
+                airt = airtime(rx2sf,1,12,125)
+                if (recv_time+rw*10e9+airt > next_transm):
+                    next_dc[2] = recv_time + rw*10e9 + 9*airt
+                    next_transm = recv_time+rw*10e9+airt
+                    downlinks.append([recv_time+rw*10e9, recv_time+rw*10e9+airt])
+                    print ("Scheduled", hex(gid), seq, sf, "for RW2")
+            else:
+                print ("No resources available for", hex(gid), "SF", sf)
         resp = struct.pack('IIIB', gid, nid, seq, rw)
         client_socket.send(resp)
         mutex.release()

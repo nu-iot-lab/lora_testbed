@@ -1,4 +1,4 @@
-from machine import SoftI2C, Pin, SPI, reset
+from machine import SoftI2C, Pin, SPI, reset, RTC
 from lora import LoRa
 import ssd1306
 import time
@@ -63,9 +63,11 @@ wlan = network.WLAN(network.STA_IF)
 mac = "FFFFFFFFFFFF"
 gw_id = 1000000 # will be set up later
 schedule = []
-_sf = 7
+_sf = 7 # default value
 _rx2sf = 9
 received = 0
+
+rtc = RTC()
 
 ### --- FUNCTIONS --- ###
 def convert_mac(mac):
@@ -96,27 +98,11 @@ def wifi_connect():
     if not wlan.isconnected():
         print('connecting to network...')
         random_sleep(10)
-        wlan.connect('IoTLab', '97079088')
+        # wlan.connect('IoTLab', '97079088')
+        wlan.connect('rasp', 'lalalala')
         while not wlan.isconnected():
             time.sleep(1)
     oled_lines("LoRa testbed", mac[2:], wlan.ifconfig()[0], "GW", " ")
-
-# this is borrowed from LoRaSim (https://www.lancaster.ac.uk/scc/sites/lora/lorasim.html)
-def airtime(sf,cr,pl,bw):
-    H = 0        # implicit header disabled (H=0) or not (H=1)
-    DE = 0       # low data rate optimization enabled (=1) or not (=0)
-    Npream = 8
-    if bw == 125 and sf in [11, 12]:
-        # low data rate optimization mandated for BW125 with SF11 and SF12
-        DE = 1
-    if sf == 6:
-        # can only have implicit header with SF6
-        H = 1
-    Tsym = (2.0**sf)/bw
-    Tpream = (Npream + 4.25)*Tsym
-    payloadSymbNB = 8 + max(math.ceil((8.0*pl-4.0*sf+28+16-20*H)/(4.0*(sf-2*DE)))*(cr+4),0)
-    Tpayload = payloadSymbNB * Tsym
-    return Tpream + Tpayload
 
 def wait_commands():
     global lora, _sf, _rx2sf, schedule, received
@@ -134,7 +120,6 @@ def wait_commands():
     while (True):
         while (True):
             events = poller.poll()
-            #print('events = ', events)
             if events is not None:
                 break
         conn, addr = wlan_s.accept()
@@ -148,16 +133,9 @@ def wait_commands():
                     oled_lines("LoRa testbed", mac[2:], wlan.ifconfig()[0], "GW", str(init))
                     lora.sleep()
                     schedule = []
-                    # next_duty_cycle = {}
-                    # next_rx1 = 0.0
-                    # next_rx2 = 0.0
-                    # next_duty_cycle[1] = 0.0
-                    # next_duty_cycle[2] = 1.0
                     lora.set_spreading_factor(_sf)
                     lora.set_frequency(freqs[0])
                     lora.recv()
-                    # airt1 = airtime(_sf,1,12,125)
-                    # airt2 = airtime(_rx2sf,1,12,125)
                     received = 0
             except Exception as e:
                 print("wrong packet format!", e)
@@ -185,52 +163,36 @@ def rx_handler(recv_pkg):
     global schedule, received
     if (len(recv_pkg) > 4):
         recv_pkg_len = recv_pkg[4]
+        recv_time = time.time_ns()
         try:
             print("---")
             (dev_id, leng, cks, seq, msg) = struct.unpack('IBII%ds' % recv_pkg_len, recv_pkg)
-            recv_time = time.ticks_ms()
+            # recv_time = time.ticks_ms()
             print("Received from:", hex(dev_id), leng, cks, seq, msg, "at", recv_time, lora.get_rssi())
             msg = msg.decode()
             cks_ = uhashlib.sha256(msg)
             cks_ = cks_.digest()
             cks_ = ubinascii.hexlify(cks_)
             cks_ = cks_.decode()[:8]
-            # print(msg, cks_, cks)
             if (int(cks_,16) == cks):
                 received += 1
-                # schedule an ack if the ack does not collide with other transmissions and there are available resources
-                # if (permitted(recv_time+1000, 1) == 1):
-                #     schedule.append([recv_time+1000, dev_id, seq, 1])
-                #     next_rx1 = recv_time+1000
-                #     print("RX1 ok")
-                # else:
-                #     print("No duty cycle resources available in RX1")
-                #     print("Trying RX2")
-                #     if (permitted(recv_time+2000, 2) == 1):
-                #         schedule.append([recv_time+2000, dev_id, seq, 2])
-                #         next_rx2 = recv_time+2000
-                #         print("RX2 ok")
-                #     else:
-                #         print("No duty cycle resources available in RX2")
-                #         print("Gateway unavailable!")
-
                 # send data to net-server
                 try:
                     wlan_s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     wlan_s.connect(('192.168.1.230', 8001))
                 except Exception as e:
-                    print("Connection to RPi failed!", e)
+                    print("Connection to NS failed!", e)
                     wlan_s.close()
                 else:
-                    pkg = struct.pack('IIIB', gw_id, int(dev_id), seq, _sf)
+                    pkg = struct.pack('IIIBQ', gw_id, int(dev_id), seq, _sf, recv_time)
                     wlan_s.send(pkg)
                     msg = wlan_s.recv(512)
                     win = 0
                     try:
                         (rgw_id, rdev_id, rseq, win) = struct.unpack('IIIB', msg)
-                        print("Received from RPi:", rgw_id, rdev_id, rseq, win)
+                        print("Received from NS:", rgw_id, rdev_id, rseq, win)
                     except Exception as e:
-                        print("wrong RPi packet format!", e)
+                        print("wrong NS packet format!", e)
                         wlan_s.close()
                         led.value(0)
                     else:
@@ -249,7 +211,7 @@ def rx_handler(recv_pkg):
 def scheduler():
     global lora, schedule
     while True:
-        # time.sleep(0.1)
+        time.sleep(0.1)
         if len(schedule) > 0:
             try:
                 (tm, dev_id, seq, win) = schedule[0]
@@ -277,11 +239,43 @@ def scheduler():
                 print("Something went wrong in scheduling", e)
                 lora.recv()
 
-# airt1 = airtime(_sf,1,12,125)
-# airt2 = airtime(_rx2sf,1,12,125)
+def get_time():
+    NTP_QUERY = bytearray(48)
+    NTP_QUERY[0] = 0x1b
+    addr = socket.getaddrinfo("pool.ntp.org", 123)[0][-1]
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.settimeout(1)
+    res = s.sendto(NTP_QUERY, addr)
+    msg = s.recv(48)
+    s.close()
+    val = struct.unpack("!I", msg[40:44])[0]
+    return val - 3155673600
+
+def set_time():
+    t = get_time()
+    tm = time.localtime(t+6*60*60) # KZ
+    tm = tm[0:3] + (0,) + tm[3:6] + (0,)
+    rtc.datetime(tm)
+    # print(time.localtime())
+
+def ntp_sync():
+    while(True):
+        try:
+            set_time()
+            print("Time sync done")
+        except:
+            pass
+        time.sleep(20)
+
+def get_ms():
+    tuples = rtc.datetime()
+    return tuples[6]*10e6 + tuples[7]
+
 gw_id = convert_mac(ubinascii.hexlify(wlan.config('mac')).decode())
 lora.on_recv(rx_handler)
 lora.recv()
 
 _thread.start_new_thread(wait_commands, ())
+time.sleep(10)
+_thread.start_new_thread(ntp_sync, ())
 _thread.start_new_thread(scheduler, ())
