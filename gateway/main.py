@@ -68,8 +68,6 @@ _rx2sf = 9
 received = 0
 
 rtc = RTC()
-syncs = 0
-first_sync_time = 0
 
 ### --- FUNCTIONS --- ###
 def convert_mac(mac):
@@ -142,7 +140,7 @@ def wait_commands():
                 print("wrong packet format!", e)
 
 def rx_handler(recv_pkg):
-    global schedule, received, first_sync_time
+    global schedule, received
     if (len(recv_pkg) > 4):
         recv_pkg_len = recv_pkg[4]
         recv_time = time.time_ns()
@@ -243,13 +241,9 @@ def set_time():
     # print(time.localtime())
 
 def ntp_sync():
-    global syncs, first_sync_time
     while(True):
         try:
             set_time()
-            syncs += 1
-            if (syncs == 1):
-                first_sync_time = time.time_ns()
             print("Time sync done")
         except:
             pass
