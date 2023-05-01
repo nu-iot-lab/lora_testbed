@@ -33,7 +33,9 @@ def airtime(sf,cr,pl,bw):
     Tpream = (Npream + 4.25)*Tsym
     payloadSymbNB = 8 + max(math.ceil((8.0*pl-4.0*sf+28+16-20*H)/(4.0*(sf-2*DE)))*(cr+4),0)
     Tpayload = payloadSymbNB * Tsym
-    return (Tpream + Tpayload)*10e6 # convert to ns
+    return (Tpream + Tpayload)*1e6 # convert to ns
+
+print(airtime(7,1,12,125))
 
 def handle_client_connection(client_socket):
     global next_dc, next_transm, downlinks, mutex
@@ -50,25 +52,25 @@ def handle_client_connection(client_socket):
         for dl in downlinks:
             if (recv_time > dl[0] and recv_time < dl[1]): # cannot accept uplinks during downlink time
                 clash = 1
-            if (recv_time + 5*10e9 < dl[1]): # keep items in the list for 5sec min
+            if (recv_time + 5*1e9 < dl[1]): # keep items in the list for 5sec min
                 downlinks.remove(dl)
         if clash == 0:
             mutex.acquire(timeout=2)
-            if (recv_time+1*10e9 > next_dc[1]):
+            if (recv_time+1*1e9 > next_dc[1]):
                 rw = 1
                 airt = airtime(sf,1,12,125)
-                if (recv_time+rw*10e9+airt > next_transm): 
-                    next_dc[1] = recv_time + rw*10e9 + 99*airt
-                    next_transm = recv_time+rw*10e9+airt
-                    downlinks.append([recv_time+rw*10e9, recv_time+rw*10e9+airt])
+                if (recv_time+rw*1e9+airt > next_transm):
+                    next_dc[1] = recv_time + rw*1e9 + 99*airt
+                    next_transm = recv_time+rw*1e9+airt
+                    downlinks.append([recv_time+rw*1e9, recv_time+rw*1e9+airt])
                     print ("Scheduled", hex(gid), seq, sf, "for RW1")
-            elif (recv_time+2*10e9 > next_dc[2]):
+            elif (recv_time+2*1e9 > next_dc[2]):
                 rw = 2
                 airt = airtime(rx2sf,1,12,125)
-                if (recv_time+rw*10e9+airt > next_transm):
-                    next_dc[2] = recv_time + rw*10e9 + 9*airt
-                    next_transm = recv_time+rw*10e9+airt
-                    downlinks.append([recv_time+rw*10e9, recv_time+rw*10e9+airt])
+                if (recv_time+rw*1e9+airt > next_transm):
+                    next_dc[2] = recv_time + rw*1e9 + 9*airt
+                    next_transm = recv_time+rw*1e9+airt
+                    downlinks.append([recv_time+rw*1e9, recv_time+rw*1e9+airt])
                     print ("Scheduled", hex(gid), seq, sf, "for RW2")
             else:
                 print ("No resources available for", hex(gid), "SF", sf)
