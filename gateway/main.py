@@ -68,6 +68,8 @@ _rx2sf = 9
 received = 0
 
 rtc = RTC()
+syncs = 0
+first_sync_time = 0
 
 ### --- FUNCTIONS --- ###
 def convert_mac(mac):
@@ -98,8 +100,7 @@ def wifi_connect():
     if not wlan.isconnected():
         print('connecting to network...')
         random_sleep(10)
-        # wlan.connect('IoTLab', '97079088')
-        wlan.connect('rasp', 'lalalala')
+        wlan.connect('IoTLab', '97079088')
         while not wlan.isconnected():
             time.sleep(1)
     oled_lines("LoRa testbed", mac[2:], wlan.ifconfig()[0], "GW", " ")
@@ -140,34 +141,15 @@ def wait_commands():
             except Exception as e:
                 print("wrong packet format!", e)
 
-# def permitted(ti, w):
-#     if (w == 1):
-#         if (ti < next_duty_cycle[1]):
-#             return 0
-#         tj = ti + airt1
-#         t1 = next_rx2
-#         t2 = t1 + airt2
-#         if ( (ti >= t1 and ti <= t2) or (tj <= t2 and tj >= t1) or (ti == t1 and tj == t2) ):
-#             return 0
-#     elif (w == 2):
-#         if (ti < next_duty_cycle[2]):
-#             return 0
-#         tj = ti + airt2
-#         t1 = next_rx1
-#         t2 = t1 + airt1
-#         if ( (ti >= t1 and ti <= t2) or (tj <= t2 and tj >= t1) or (ti == t1 and tj == t2) ):
-#             return 0
-#     return 1
-
 def rx_handler(recv_pkg):
-    global schedule, received
+    global schedule, received, first_sync_time
     if (len(recv_pkg) > 4):
         recv_pkg_len = recv_pkg[4]
         recv_time = time.time_ns()
+        internal_recv = time.ticks_ms()
         try:
             print("---")
             (dev_id, leng, cks, seq, msg) = struct.unpack('IBII%ds' % recv_pkg_len, recv_pkg)
-            # recv_time = time.ticks_ms()
             print("Received from:", hex(dev_id), leng, cks, seq, msg, "at", recv_time, lora.get_rssi())
             msg = msg.decode()
             cks_ = uhashlib.sha256(msg)
@@ -198,7 +180,9 @@ def rx_handler(recv_pkg):
                     else:
                         if (rgw_id == gw_id) and (rdev_id == dev_id) and (rseq == seq):
                             if (win > 0):
-                                schedule.append([recv_time+1000*int(win), dev_id, seq, int(win)])
+                                el = internal_recv+int(win)*1e3
+                                print(el)
+                                schedule.append([el, dev_id, seq, int(win)])
                                 print("RW"+str(win)+" ok")
                             else:
                                 print("Gateway unavailable!")
@@ -225,9 +209,9 @@ def scheduler():
                     lora.set_spreading_factor(_rx2sf)
                     lora.set_frequency(rx2freq)
                     lora.standby()
-                while(time.ticks_diff(tm, time.ticks_ms()) > 0):
+                while(tm - time.ticks_ms() > 0):
                     pass
-                print("...sending ack to", hex(dev_id), "at", time.ticks_ms(), "( RW", win, ")")
+                print("...sending ack to", hex(dev_id), "at", time.time_ns(), "( RW", win, ")")
                 lora.send(ack_pkt)
                 if (win == 2):
                     lora.set_spreading_factor(_sf)
@@ -259,17 +243,17 @@ def set_time():
     # print(time.localtime())
 
 def ntp_sync():
+    global syncs, first_sync_time
     while(True):
         try:
             set_time()
+            syncs += 1
+            if (syncs == 1):
+                first_sync_time = time.time_ns()
             print("Time sync done")
         except:
             pass
         time.sleep(20)
-
-def get_ms():
-    tuples = rtc.datetime()
-    return tuples[6]*10e6 + tuples[7]
 
 gw_id = convert_mac(ubinascii.hexlify(wlan.config('mac')).decode())
 lora.on_recv(rx_handler)
