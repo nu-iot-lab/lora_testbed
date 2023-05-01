@@ -36,7 +36,7 @@ def airtime(sf,cr,pl,bw):
     return (Tpream + Tpayload)*10e6 # convert to ns
 
 def handle_client_connection(client_socket):
-    global next_dc, next_transm, downlinks
+    global next_dc, next_transm, downlinks, mutex
     request = client_socket.recv(512)
     try:
         (gid, nid, seq, sf, recv_time) = struct.unpack('IIIBQ', request)
@@ -52,7 +52,7 @@ def handle_client_connection(client_socket):
                 clash = 1
             if (recv_time - 5*10e9 > dl[1]): # keep items in the list for 5sec min
                 downlinks.remove(dl)
-        if clash > 0:
+        if clash == 0:
             mutex.acquire(timeout=2)
             if (recv_time+1*10e9 > next_dc[1]):
                 rw = 1
@@ -72,6 +72,8 @@ def handle_client_connection(client_socket):
                     print ("Scheduled", hex(gid), seq, sf, "for RW2")
             else:
                 print ("No resources available for", hex(gid), "SF", sf)
+        else:
+            print ("Uplink clash for", hex(gid), "SF", sf)
         resp = struct.pack('IIIB', gid, nid, seq, rw)
         client_socket.send(resp)
         mutex.release()
