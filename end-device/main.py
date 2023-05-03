@@ -105,7 +105,7 @@ def wifi_connect():
             pass
 
 def wait_commands():
-    global init, lora, _start_experiment, _exp_time, _sf, _rx2sf, _pkt_size, _period, _confirmed
+    global init, lora, _start_experiment, _exp_time, _sf, _rx2sf, _pkt_size, _period, _confirmed, wlan_s
     wifi_connect()
     webrepl.start()
     time.sleep(5)
@@ -191,7 +191,7 @@ while(True):
         retries = 0
         runn = 1
         while(runn == 1 and _start_experiment == 0):
-            print("-------", pkts, time.time()-start_exp, "-------")
+            print("------- Packets:", pkts, "Elapsed time:", time.time()-start_exp, "/", _exp_time, "-------")
             oled_lines("LoRa testbed", mac[2:], wlan.ifconfig()[0], "ED", str(init)+" "+str(pkts))
             if (f == 0):
                 data = generate_msg()
@@ -270,12 +270,11 @@ while(True):
                     failed += 1
                     f = 0
             if (time.time() - start_exp >= _exp_time):
-                print(time.time(), start_exp, _exp_time)
                 runn = 0
 
         if (_start_experiment == 0):
             print("I am sending stats...")
-            random_sleep(5)
+            random_sleep(10)
             if delivered > 0:
                 rssi /= delivered
             stat_pkt = struct.pack('IIIIf', dev_id, delivered, retransmitted, failed, rssi)
@@ -283,12 +282,8 @@ while(True):
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 s.connect(('192.168.1.230', 8002))
                 s.send(stat_pkt)
-                random_sleep(1)
-                s.send(stat_pkt)
-                random_sleep(1)
-                s.send(stat_pkt)
                 s.close()
             except Exception as e:
-                print("Couldn't send out the stats,", e)
-            time.sleep(10)
+                print("Couldn't send out stats", e)
+            time.sleep(5)
             reset()
