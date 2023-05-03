@@ -108,10 +108,9 @@ def wait_commands():
     wifi_connect()
     webrepl.start()
     host = wlan.ifconfig()[0]
-    port = 8000
     wlan_s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     wlan_s.setblocking(False)
-    wlan_s.bind((host, port))
+    wlan_s.bind((host, 8002))
     wlan_s.listen(5)
     print("Ready...")
     poller = select.poll()

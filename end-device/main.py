@@ -110,7 +110,7 @@ def wait_commands():
     webrepl.start()
     time.sleep(5)
     host = wlan.ifconfig()[0]
-    port = 8000
+    port = 8002
     wlan_s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     wlan_s.setblocking(False)
     wlan_s.bind((host, port))
@@ -182,6 +182,7 @@ while(True):
         lora.standby()
         pkts = 1
         delivered = 0
+        retransmitted = 0
         failed = 0
         rssi = 0.0
         _start_experiment = 0
@@ -262,6 +263,7 @@ while(True):
                 if (retries < max_retries):
                     pkts -= 1
                     retries += 1
+                    retransmitted += 1
                     random_sleep(5) # in case of a failure -> retransmit (TODO: follow duty cycle rules)
                 else:
                     retries = 0
@@ -276,10 +278,14 @@ while(True):
             random_sleep(5)
             if delivered > 0:
                 rssi /= delivered
-            stat_pkt = struct.pack('IIIf', dev_id, delivered, failed, rssi)
+            stat_pkt = struct.pack('IIIIf', dev_id, delivered, retransmitted, failed, rssi)
             try:
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                s.connect(('192.168.1.230', 8000))
+                s.connect(('192.168.1.230', 8002))
+                s.send(stat_pkt)
+                random_sleep(1)
+                s.send(stat_pkt)
+                random_sleep(1)
                 s.send(stat_pkt)
                 s.close()
             except Exception as e:

@@ -12,7 +12,7 @@ if len(sys.argv) < 3:
 	print("python3 init_exp_f.py -m <U/C>")
 	sys.exit()
 
-PORT = 8000
+PORT = 8002
 BUFFER_SIZE = 512
 assets = []
 eds = 0
@@ -82,8 +82,8 @@ elif mode == 'C':
 			s.connect((IP, PORT))
 			s.send( MESSAGE )
 			s.close()
-		except:
-			print("Socket error!")
+		except Exception as e:
+			print("Socket error!", e)
 
 
 	print("\nWaiting for statistics\n")
@@ -92,16 +92,19 @@ elif mode == 'C':
 	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	s.bind(('192.168.1.230', PORT))
 	s.listen(50)
+	recvd_stats = {}
 	while (a <= eds):
 		(conn, addr) = s.accept()
 		data = conn.recv(512)
 		if (len(data) > 10):
 			try:
-				(id, deliv, fail, rssi) = struct.unpack('IIIf', data)
-				print(str(a)+".", hex(id), deliv, fail, rssi)
-				f.write( "%s: %s %s %s\n" % ( hex(id), str(deliv), str(fail), str(rssi) ) )
-				a += 1
-			except:
-				print("wrong stat packet format!")
+				(id, deliv, retr, fail, rssi) = struct.unpack('IIIIf', data)
+				if id not in recvd_stats:
+					print(str(a)+".", hex(id), deliv, retr, fail, rssi)
+					f.write( "%s: %s %s %s %s\n" % ( hex(id), str(deliv), str(retr), str(fail), str(rssi) ) )
+					a += 1
+					recvd_stats[id] = 1
+			except Exception as e:
+				print("wrong stat packet format!", e)
 	f.close()
 	s.close()
