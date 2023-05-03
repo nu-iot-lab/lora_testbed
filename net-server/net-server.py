@@ -35,8 +35,6 @@ def airtime(sf,cr,pl,bw):
     Tpayload = payloadSymbNB * Tsym
     return (Tpream + Tpayload)*1e6 # convert to ns
 
-print(airtime(7,1,12,125))
-
 def handle_client_connection(client_socket):
     global next_dc, next_transm, downlinks, mutex
     request = client_socket.recv(512)
@@ -64,16 +62,17 @@ def handle_client_connection(client_socket):
                     next_transm = recv_time+rw*1e9+airt
                     downlinks.append([recv_time+rw*1e9, recv_time+rw*1e9+airt])
                     print ("Scheduled", hex(gid), seq, sf, "for RW1")
-            elif (recv_time+2*1e9 > next_dc[2]):
-                rw = 2
-                airt = airtime(rx2sf,1,12,125)
-                if (recv_time+rw*1e9+airt > next_transm):
-                    next_dc[2] = recv_time + rw*1e9 + 9*airt
-                    next_transm = recv_time+rw*1e9+airt
-                    downlinks.append([recv_time+rw*1e9, recv_time+rw*1e9+airt])
-                    print ("Scheduled", hex(gid), seq, sf, "for RW2")
             else:
-                print ("No resources available for", hex(gid), "SF", sf)
+                if (recv_time+2*1e9 > next_dc[2]):
+                    rw = 2
+                    airt = airtime(rx2sf,1,12,125)
+                    if (recv_time+rw*1e9+airt > next_transm):
+                        next_dc[2] = recv_time + rw*1e9 + 9*airt
+                        next_transm = recv_time+rw*1e9+airt
+                        downlinks.append([recv_time+rw*1e9, recv_time+rw*1e9+airt])
+                        print ("Scheduled", hex(gid), seq, sf, "for RW2")
+                else:
+                    print ("No resources available for", hex(gid), "SF", sf)
         else:
             print ("Uplink clash for", hex(gid), "SF", sf)
         resp = struct.pack('IIIB', gid, nid, seq, rw)
