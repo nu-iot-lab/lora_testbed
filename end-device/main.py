@@ -73,6 +73,10 @@ _sf = 7
 _rx2sf = 9
 _confirmed = 1
 max_retries = 1
+tx_time = 0.0
+rx_time = 0.0
+rwone = 0
+rwtwo = 0
 
 ### --- FUNCTIONS --- ###
 def random_sleep(max_sleep):
@@ -185,6 +189,10 @@ while(True):
         retransmitted = 0
         failed = 0
         rssi = 0.0
+        tx_time = 0.0
+        rx_time = 0.0
+        rwone = 0
+        rwtwo = 0
         _start_experiment = 0
         led.value(0)
         f = 0
@@ -202,7 +210,9 @@ while(True):
             print("ID =", hex(dev_id), "Data =", data, "Checksum =", int(cks, 16))
             last_seq = pkts
             pkt = struct.pack('IBII%ds' % len(data), dev_id, len(data), int(cks, 16), pkts, data)
+            tm = time.ticks_us()
             lora.send(pkt)
+            tx_time += time.ticks_us()-tm
             last_trans = time.ticks_ms()
             print("transmitted at:", last_trans)
             ack = 0
@@ -214,15 +224,18 @@ while(True):
                 led.value(1)
                 print("Waiting in RX1 at:", time.ticks_ms())
                 timeout = 140*(_sf-7+1)
+                tm = time.ticks_us()
                 while(time.ticks_diff(time.ticks_ms(), recv_time) < timeout):
                     if (lora._get_irq_flags()): # check if something is being received (RxTimeout should be used)
                         timeout += 400
                     if (ack):
                         break
+                rx_time += time.ticks_us()-tm
                 if (ack):
                     delivered += 1
                     retries = 0
                     f = 0
+                    rwone += 1
                     print("RX1 ack received!")
                 else:
                     lora.sleep()
@@ -239,6 +252,7 @@ while(True):
                         led.value(1)
                         print("Waiting in RX2 at:", time.ticks_ms())
                         timeout = 500
+                        tm = time.ticks_us()
                         while(time.ticks_diff(time.ticks_ms(), recv_time) < timeout):
                             if (ack):
                                 break
@@ -246,10 +260,12 @@ while(True):
                             delivered += 1
                             retries = 0
                             f = 0
+                            rwtwo += 1
                             print("RX2 ack received!")
                         else:
                             f = 1
                             print("No ack was received in RX2")
+                        rx_time += time.ticks_us()-tm
             lora.set_spreading_factor(_sf)
             lora.set_frequency(freqs[0])
             led.value(0)
@@ -277,7 +293,7 @@ while(True):
             random_sleep(10)
             if delivered > 0:
                 rssi /= delivered
-            stat_pkt = struct.pack('IIIIf', dev_id, delivered, retransmitted, failed, rssi)
+            stat_pkt = struct.pack('IIIIfffii', dev_id, delivered, retransmitted, failed, rssi, tx_time, rx_time, rwone, rwtwo)
             try:
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 s.connect(('192.168.1.230', 8002))
