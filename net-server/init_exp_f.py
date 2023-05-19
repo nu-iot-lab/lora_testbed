@@ -98,10 +98,10 @@ elif mode == 'C':
 		data = conn.recv(512)
 		if (len(data) > 10):
 			try:
-				(id, deliv, retr, fail, rss, tx_t, rx_t, rwone, rwtwo) = struct.unpack('IIIIfffii', data)
+				(id, sf, deliv, retr, fail, rss, tx_t, rx_t, rwone, rwtwo) = struct.unpack('IBIIIfffii', data)
 				if id not in recvd_stats:
-					print(str(a)+".", hex(id), deliv, retr, fail, rss, tx_t, rx_t, rwone, rwtwo)
-					f.write( "%s: %s %s %s %s %s %s %s %s\n" % ( hex(id), str(deliv), str(retr), str(fail), str(rss), str(tx_t), str(rx_t), str(rwone), str(rwtwo) ) )
+					print(str(a)+".", hex(id), sf, deliv, retr, fail, rss, tx_t, rx_t, rwone, rwtwo)
+					f.write( "%s: %s %s %s %s %s %s %s %s %s\n" % ( hex(id), str(sf), str(deliv), str(retr), str(fail), str(rss), str(tx_t), str(rx_t), str(rwone), str(rwtwo) ) )
 					a += 1
 					recvd_stats[id] = 1
 			except Exception as e:

@@ -291,9 +291,11 @@ while(True):
         if (_start_experiment == 0):
             print("I am sending stats...")
             random_sleep(10)
+            rx_time /= 1e6
+            tx_time /= 1e6
             if delivered > 0:
                 rssi /= delivered
-            stat_pkt = struct.pack('IIIIfffii', dev_id, delivered, retransmitted, failed, rssi, tx_time, rx_time, rwone, rwtwo)
+            stat_pkt = struct.pack('IBIIIfffii', dev_id, _sf, delivered, retransmitted, failed, rssi, tx_time, rx_time, rwone, rwtwo)
             try:
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 s.connect(('192.168.1.230', 8002))
