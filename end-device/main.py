@@ -217,13 +217,13 @@ while(True):
             print("transmitted at:", last_trans)
             ack = 0
             if (_confirmed):
-                time.sleep_ms(990)
+                time.sleep_ms(950)
                 lora.on_recv(rx_handler)
                 lora.recv_once()
                 recv_time = time.ticks_ms()
                 led.value(1)
                 print("Waiting in RX1 at:", time.ticks_ms())
-                timeout = 140*(_sf-7+1)
+                timeout = 240*(_sf-7+1)
                 tm = time.ticks_us()
                 while(time.ticks_diff(time.ticks_ms(), recv_time) < timeout):
                     if (lora._get_irq_flags()): # check if something is being received (RxTimeout should be used)
@@ -237,12 +237,14 @@ while(True):
                     f = 0
                     rwone += 1
                     print("RX1 ack received!")
+                    oled_lines("LoRa testbed", mac[2:], wlan.ifconfig()[0], "ED", str(init)+" "+str(pkts)+" RX1 ok")
                 else:
                     lora.sleep()
                     led.value(0)
                     print("No ack was received in RX1")
                     if (_rx2sf < _sf):
                         print("RX2 SF higher than uplink SF")
+                        f = 1
                     else:
                         time.sleep_ms( time.ticks_diff(last_trans+1990, time.ticks_ms()) )
                         lora.set_spreading_factor(_rx2sf)
@@ -262,9 +264,11 @@ while(True):
                             f = 0
                             rwtwo += 1
                             print("RX2 ack received!")
+                            oled_lines("LoRa testbed", mac[2:], wlan.ifconfig()[0], "ED", str(init)+" "+str(pkts)+" RX2 ok")
                         else:
                             f = 1
                             print("No ack was received in RX2")
+                            oled_lines("LoRa testbed", mac[2:], wlan.ifconfig()[0], "ED", str(init)+" "+str(pkts)+" no ACK")
                         rx_time += time.ticks_us()-tm
             lora.set_spreading_factor(_sf)
             lora.set_frequency(freqs[0])
@@ -290,7 +294,7 @@ while(True):
 
         if (_start_experiment == 0):
             print("I am sending stats...")
-            random_sleep(10)
+            random_sleep(30)
             rx_time /= 1e6
             tx_time /= 1e6
             if delivered > 0:
