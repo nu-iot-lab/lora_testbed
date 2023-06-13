@@ -217,13 +217,13 @@ while(True):
             print("transmitted at:", last_trans)
             ack = 0
             if (_confirmed):
-                time.sleep_ms(950)
+                time.sleep_ms(980)
                 lora.on_recv(rx_handler)
                 lora.recv_once()
                 recv_time = time.ticks_ms()
                 led.value(1)
                 print("Waiting in RX1 at:", time.ticks_ms())
-                timeout = 240*(_sf-7+1)
+                timeout = 140*(_sf-7+1)
                 tm = time.ticks_us()
                 while(time.ticks_diff(time.ticks_ms(), recv_time) < timeout):
                     if (lora._get_irq_flags()): # check if something is being received (RxTimeout should be used)
