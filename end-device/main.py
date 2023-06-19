@@ -289,6 +289,7 @@ while(True):
                     retries = 0
                     failed += 1
                     f = 0
+                    time.sleep_ms(_period*1000)
             if (time.time() - start_exp >= _exp_time):
                 runn = 0
 
