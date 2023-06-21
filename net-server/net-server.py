@@ -8,6 +8,7 @@ import math
 import sys
 
 bind_ip = '192.168.1.230'
+#bind_ip = '127.0.0.1'
 bind_port = 8001
 
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -55,7 +56,7 @@ def handle_client_connection(client_socket):
                 downlinks.remove(dl)
         if clash == 0:
             mutex.acquire(timeout=2)
-            if (recv_time+1*1e9 > next_dc[1]):
+            if (recv_time+1*1e9 >= next_dc[1]):
                 rw = 1
                 airt = airtime(sf,1,12,125)
                 if (recv_time+rw*1e9+airt > next_transm):
@@ -64,7 +65,7 @@ def handle_client_connection(client_socket):
                     downlinks.append([recv_time+rw*1e9, recv_time+rw*1e9+airt])
                     print ("Scheduled", hex(gid), seq, sf, "for RW1")
             else:
-                if (recv_time+2*1e9 > next_dc[2]):
+                if (recv_time+2*1e9 >= next_dc[2]):
                     rw = 2
                     airt = airtime(rx2sf,1,12,125)
                     if (recv_time+rw*1e9+airt > next_transm):
