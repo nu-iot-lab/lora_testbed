@@ -290,12 +290,13 @@ while(True):
                     failed += 1
                     f = 0
                     time.sleep_ms(_period*1000)
+                    random_sleep(1) # sleep for some random time as well
             if (time.time() - start_exp >= _exp_time):
                 runn = 0
 
         if (_start_experiment == 0):
             print("I am sending stats...")
-            random_sleep(30)
+            random_sleep(100)
             rx_time /= 1e6
             tx_time /= 1e6
             if delivered > 0:
