@@ -7,8 +7,7 @@ import time
 import math
 import sys
 
-#bind_ip = '192.168.1.230'
-bind_ip = '127.0.0.1'
+bind_ip = '192.168.1.230'
 bind_port = 8001
 
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
