@@ -5,8 +5,10 @@ import threading
 import struct
 import time
 import math
+import sys
 
-bind_ip = '192.168.1.230'
+#bind_ip = '192.168.1.230'
+bind_ip = '127.0.0.1'
 bind_port = 8001
 
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -16,7 +18,7 @@ server.listen(10)
 next_dc = {} # next available radio duty cycle per window
 next_dc[1] = 0
 next_dc[2] = 0
-rx2sf = 9
+rx2sf = int(sys.argv[1])
 mutex = threading.Lock() # only 1 gw has access to transmitting resources
 next_transm = 0 # it is used to avoid having two or more gws transmitting at the same time
 downlinks = [] # holds downlink tuples (start, end) of transmission
