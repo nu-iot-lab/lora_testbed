@@ -63,6 +63,7 @@ if mode == 'U':
 			continue
 	time.sleep(10)
 elif mode == 'C':
+	rx2sf = 9
 	print("\nNew experiment with id:", init)
 	for asset in assets:
 		MESSAGE = bytes(0)
@@ -71,6 +72,7 @@ elif mode == 'C':
 		IP = items[1]
 		if (items[0] == 'GW'):
 			MESSAGE = struct.pack('HBB', init, int(items[2]), int(items[3]))
+			rx2sf = int(items[3])
 		elif (items[0] == 'ED'):
 			eds += 1
 			MESSAGE = struct.pack('HiiiBBB', init, int(items[2]), int(items[3]), int(items[4]), int(items[5]), int(items[6]), int(items[7]))
@@ -84,6 +86,15 @@ elif mode == 'C':
 			s.close()
 		except Exception as e:
 			print("Socket error!", e)
+	# also contact the NS first to update rx2sf
+	try:
+		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		s.connect(('192.168.1.230', 8001))
+		MESSAGE = struct.pack('HB', init, int(items[3]))
+		s.send( MESSAGE )
+		s.close()
+	except Exception as e:
+		print("Socket error!", e)
 
 
 	print("\nWaiting for statistics\n")
