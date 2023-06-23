@@ -90,7 +90,7 @@ elif mode == 'C':
 	try:
 		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		s.connect(('192.168.1.230', 8001))
-		MESSAGE = struct.pack('HB', init, int(items[3]))
+		MESSAGE = struct.pack('HB', init, rx2sf)
 		s.send( MESSAGE )
 		s.close()
 	except Exception as e:
