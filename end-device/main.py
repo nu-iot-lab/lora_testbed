@@ -246,7 +246,7 @@ while(True):
                         print("RX2 SF higher than uplink SF")
                         f = 1
                     else:
-                        time.sleep_ms( time.ticks_diff(last_trans+1990, time.ticks_ms()) )
+                        time.sleep_ms( time.ticks_diff(last_trans+1980, time.ticks_ms()) )
                         lora.set_spreading_factor(_rx2sf)
                         lora.set_frequency(rx2freq)
                         lora.recv_once()
