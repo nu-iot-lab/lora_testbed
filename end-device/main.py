@@ -163,7 +163,7 @@ def rx_handler(recv_pkg):
         recv_pkg_len = recv_pkg[1]
         try:
             (gw_id, id, seq) = struct.unpack("iii", recv_pkg)
-            print('Received response from', hex(gw_id), dev_id, seq)
+            # print('Received response from', hex(gw_id), dev_id, seq)
             if (id == dev_id) and (seq == last_seq):
                 rssi += lora.get_rssi()
                 ack = 1
@@ -223,7 +223,7 @@ while(True):
                 recv_time = time.ticks_ms()
                 led.value(1)
                 print("Waiting in RX1 at:", time.ticks_ms())
-                timeout = 140*(_sf-7+1)
+                timeout = 150*(_sf-7+1)
                 tm = time.ticks_us()
                 while(time.ticks_diff(time.ticks_ms(), recv_time) < timeout):
                     if (lora._get_irq_flags()): # check if something is being received (RxTimeout should be used)
@@ -236,7 +236,7 @@ while(True):
                     retries = 0
                     f = 0
                     rwone += 1
-                    print("RX1 ack received!")
+                    print("RX1 ack received at", time.ticks_ms())
                     oled_lines("LoRa testbed", mac[2:], wlan.ifconfig()[0], "ED", str(init)+" "+str(pkts)+" RX1 ok")
                 else:
                     lora.sleep()
@@ -253,9 +253,11 @@ while(True):
                         recv_time = time.ticks_ms()
                         led.value(1)
                         print("Waiting in RX2 at:", time.ticks_ms())
-                        timeout = 500
+                        timeout = 900
                         tm = time.ticks_us()
                         while(time.ticks_diff(time.ticks_ms(), recv_time) < timeout):
+                            if (lora._get_irq_flags()): # check if something is being received (RxTimeout should be used)
+                                timeout += 400
                             if (ack):
                                 break
                         if (ack):
