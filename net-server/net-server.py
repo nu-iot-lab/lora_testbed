@@ -41,14 +41,14 @@ def handle_client_connection(client_socket):
     request = client_socket.recv(512)
     if (len(request) == 3):
         (init, rx2sf) = struct.unpack('HB', request)
-        print("New experiment with id", init, "and RX2SF", rx2sf)
+        print("["+str(time.time_ns()/1e6)+"]:", "New experiment with id", init, "and RX2SF", rx2sf)
         rx2sf = int(rx2sf)
     else:
         try:
             (gid, nid, seq, sf, recv_time) = struct.unpack('IIIBQ', request)
-            print ("Received from:", hex(gid), seq, sf, recv_time)
+            print ("["+str(time.time_ns()/1e6)+"]:", "Received from:", hex(gid), seq, sf, recv_time)
         except Exception as e:
-            print ("Could not unpack", e)
+            print ("["+str(time.time_ns()/1e6)+"]:", "Could not unpack", e)
         else:
             # check duty cycle and transmission availability
             rw = 0
@@ -67,7 +67,7 @@ def handle_client_connection(client_socket):
                         next_dc[1] = recv_time + rw*1e9 + 99*airt
                         next_transm = recv_time+rw*1e9+airt
                         downlinks.append([recv_time+rw*1e9, recv_time+rw*1e9+airt])
-                        print ("Scheduled", hex(gid), seq, sf, "for RW1")
+                        print ("["+str(time.time_ns()/1e6)+"]:", "Scheduled", hex(gid), seq, sf, "for RW1")
                 else:
                     if (recv_time+2*1e9 >= next_dc[2]):
                         rw = 2
@@ -76,11 +76,11 @@ def handle_client_connection(client_socket):
                             next_dc[2] = recv_time + rw*1e9 + 9*airt
                             next_transm = recv_time+rw*1e9+airt
                             downlinks.append([recv_time+rw*1e9, recv_time+rw*1e9+airt])
-                            print ("Scheduled", hex(gid), seq, sf, "for RW2")
+                            print ("["+str(time.time_ns()/1e6)+"]:", "Scheduled", hex(gid), seq, sf, "for RW2")
                     else:
-                        print ("No resources available for", hex(gid), "SF", sf)
+                        print ("["+str(time.time_ns()/1e6)+"]:", "No resources available for", hex(gid), "SF", sf)
             else:
-                print ("Uplink clash for", hex(gid), "SF", sf)
+                print ("["+str(time.time_ns()/1e6)+"]:", "Uplink clash for", hex(gid), "SF", sf)
             resp = struct.pack('IIIB', gid, nid, seq, rw)
             client_socket.send(resp)
             mutex.release()
