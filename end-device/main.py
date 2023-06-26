@@ -304,12 +304,13 @@ while(True):
             if delivered > 0:
                 rssi /= delivered
             stat_pkt = struct.pack('IBIIIfffii', dev_id, _sf, delivered, retransmitted, failed, rssi, tx_time, rx_time, rwone, rwtwo)
-            try:
-                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                s.connect(('192.168.1.230', 8002))
-                s.send(stat_pkt)
-                s.close()
-            except Exception as e:
-                print("Couldn't send out stats", e)
+            for t in range(3):
+                try:
+                    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    s.connect(('192.168.1.230', 8002))
+                    s.send(stat_pkt)
+                    s.close()
+                except Exception as e:
+                    print("Couldn't send out stats", e)
             time.sleep(5)
             reset()
