@@ -43,6 +43,10 @@ def handle_client_connection(client_socket):
         (init, rx2sf) = struct.unpack('HB', request)
         print("["+str(time.time_ns()/1e6)+"]:", "New experiment with id", init, "and RX2SF", rx2sf)
         rx2sf = int(rx2sf)
+        next_dc[1] = 0
+        next_dc[2] = 0
+        next_transm = 0
+        downlinks = []
     else:
         try:
             (gid, nid, seq, sf, recv_time) = struct.unpack('IIIBQ', request)
