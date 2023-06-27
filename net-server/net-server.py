@@ -40,13 +40,17 @@ def handle_client_connection(client_socket):
     global next_dc, next_transm, downlinks, mutex, rx2sf
     request = client_socket.recv(512)
     if (len(request) == 3):
-        (init, rx2sf) = struct.unpack('HB', request)
-        print("["+str(time.time_ns()/1e6)+"]:", "New experiment with id", init, "and RX2SF", rx2sf)
-        rx2sf = int(rx2sf)
-        next_dc[1] = 0
-        next_dc[2] = 0
-        next_transm = 0
-        downlinks = []
+        try:
+            (init, rx2sf) = struct.unpack('HB', request)
+        except Exception as e:
+            print ("["+str(time.time_ns()/1e6)+"]:", "Could not unpack", e)
+        else:
+            print("["+str(time.time_ns()/1e6)+"]:", "New experiment with id", init, "and RX2SF", rx2sf)
+            rx2sf = int(rx2sf)
+            next_dc[1] = 0
+            next_dc[2] = 0
+            next_transm = 0
+            downlinks = []
     else:
         try:
             (gid, nid, seq, sf, recv_time) = struct.unpack('IIIBQ', request)
