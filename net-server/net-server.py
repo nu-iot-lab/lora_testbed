@@ -94,7 +94,8 @@ def handle_client_connection(client_socket):
                 print ("["+str(time.time())+"]:", "Uplink clash for", hex(gid), "SF", sf)
             resp = struct.pack('IIIB', gid, nid, seq, rw)
             client_socket.send(resp)
-            mutex.release()
+            if mutex.locked() == True:
+                mutex.release()
             client_socket.close()
             print ("Downlinks in queue:", len(downlinks))
 
