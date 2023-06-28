@@ -11,6 +11,7 @@ bind_ip = '192.168.1.230'
 bind_port = 8001
 
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 server.bind((bind_ip, bind_port))
 server.listen(10)
 
@@ -43,20 +44,22 @@ def handle_client_connection(client_socket):
         try:
             (init, rx2sf) = struct.unpack('HB', request)
         except Exception as e:
-            print ("["+str(time.time_ns()/1e6)+"]:", "Could not unpack", e)
+            print ("["+str(time.time())+"]:", "Could not unpack", e)
         else:
-            print("["+str(time.time_ns()/1e6)+"]:", "New experiment with id", init, "and RX2SF", rx2sf)
+            print("["+str(time.time())+"]:", "New experiment with id", init, "and RX2SF", rx2sf)
             rx2sf = int(rx2sf)
             next_dc[1] = 0
             next_dc[2] = 0
             next_transm = 0
             downlinks = []
+            if mutex.locked() == True:
+                mutex.release()
     else:
         try:
             (gid, nid, seq, sf, recv_time) = struct.unpack('IIIBQ', request)
-            print ("["+str(time.time_ns()/1e6)+"]:", "Received from:", hex(gid), seq, sf, recv_time)
+            print ("["+str(time.time())+"]:", "Received from:", hex(gid), seq, sf, recv_time)
         except Exception as e:
-            print ("["+str(time.time_ns()/1e6)+"]:", "Could not unpack", e)
+            print ("["+str(time.time())+"]:", "Could not unpack", e)
         else:
             # check duty cycle and transmission availability
             rw = 0
@@ -64,7 +67,7 @@ def handle_client_connection(client_socket):
             for dl in downlinks:
                 if (recv_time > dl[0] and recv_time < dl[1]): # cannot accept uplinks during downlink time
                     clash = 1
-                if (recv_time + 5*1e9 < dl[1]): # keep items in the list for 5sec min
+                if (dl[1] + 5*1e9 < recv_time): # keep items in the list for 5sec min
                     downlinks.remove(dl)
             if clash == 0:
                 mutex.acquire(timeout=2)
@@ -75,7 +78,7 @@ def handle_client_connection(client_socket):
                         next_dc[1] = recv_time + rw*1e9 + 99*airt
                         next_transm = recv_time+rw*1e9+airt
                         downlinks.append([recv_time+rw*1e9, recv_time+rw*1e9+airt])
-                        print ("["+str(time.time_ns()/1e6)+"]:", "Scheduled", hex(gid), seq, sf, "for RW1")
+                        print ("["+str(time.time())+"]:", "Scheduled", hex(gid), seq, sf, "for RW1")
                 else:
                     if (recv_time+2*1e9 >= next_dc[2]):
                         rw = 2
@@ -84,15 +87,16 @@ def handle_client_connection(client_socket):
                             next_dc[2] = recv_time + rw*1e9 + 9*airt
                             next_transm = recv_time+rw*1e9+airt
                             downlinks.append([recv_time+rw*1e9, recv_time+rw*1e9+airt])
-                            print ("["+str(time.time_ns()/1e6)+"]:", "Scheduled", hex(gid), seq, sf, "for RW2")
+                            print ("["+str(time.time())+"]:", "Scheduled", hex(gid), seq, sf, "for RW2")
                     else:
-                        print ("["+str(time.time_ns()/1e6)+"]:", "No resources available for", hex(gid), "SF", sf)
+                        print ("["+str(time.time())+"]:", "No resources available for", hex(gid), "SF", sf)
             else:
-                print ("["+str(time.time_ns()/1e6)+"]:", "Uplink clash for", hex(gid), "SF", sf)
+                print ("["+str(time.time())+"]:", "Uplink clash for", hex(gid), "SF", sf)
             resp = struct.pack('IIIB', gid, nid, seq, rw)
             client_socket.send(resp)
             mutex.release()
             client_socket.close()
+            print ("Downlinks in queue:", len(downlinks))
 
 while True:
     client_sock, address = server.accept()
