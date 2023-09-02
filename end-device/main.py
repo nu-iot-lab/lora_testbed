@@ -81,6 +81,7 @@ rwtwo = 0
 ### --- FUNCTIONS --- ###
 def random_sleep(max_sleep):
     t = random.getrandbits(32)
+    print("I will sleep for", 1+t%max_sleep, "secs")
     time.sleep(1+t%max_sleep)
 
 def convert_mac(mac):
@@ -305,6 +306,7 @@ while(True):
                 rssi /= delivered
             stat_pkt = struct.pack('IBIIIfffii', dev_id, _sf, delivered, retransmitted, failed, rssi, tx_time, rx_time, rwone, rwtwo)
             for t in range(3):
+                random_sleep(30)
                 try:
                     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     s.connect(('192.168.1.230', 8002))
@@ -312,5 +314,7 @@ while(True):
                     s.close()
                 except Exception as e:
                     print("Couldn't send out stats", e)
+            oled_lines("LoRa testbed", mac[2:], wlan.ifconfig()[0], "ED", "Done!")
             time.sleep(5)
             reset()
+    # time.sleep(5)
