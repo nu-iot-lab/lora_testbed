@@ -102,11 +102,11 @@ elif mode == 'C':
 	a = 1
 	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	s.bind(('192.168.1.230', PORT))
-	s.listen(50)
+	s.listen(100)
 	recvd_stats = {}
 	while (a <= eds):
 		(conn, addr) = s.accept()
-		data = conn.recv(512)
+		data = conn.recv(1024)
 		if (len(data) > 10):
 			try:
 				(id, sf, deliv, retr, fail, rss, tx_t, rx_t, rwone, rwtwo) = struct.unpack('IBIIIfffii', data)
@@ -115,7 +115,19 @@ elif mode == 'C':
 					f.write( "%s: %s %s %s %s %s %s %s %s %s\n" % ( hex(id), str(sf), str(deliv), str(retr), str(fail), str(rss), str(tx_t), str(rx_t), str(rwone), str(rwtwo) ) )
 					a += 1
 					recvd_stats[id] = 1
+				#else:
+					#print("ed recv stat id  ", hex(id))
+					#print("len of data " + len(data))
+					#if(len(data) > 0):
+					#	print("data " + data)
+					#print("end recv error log")
 			except Exception as e:
 				print("wrong stat packet format!", e)
+		else:
+			print("ed stat error addr " ,addr)
+			print("len of data " ,len(data))
+			if(len(data) > 0):
+				print("data ",data)
+	print("end eds")
 	f.close()
 	s.close()
