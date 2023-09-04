@@ -7,7 +7,6 @@ import time
 import math
 
 bind_ip = '192.168.1.230'
-#bind_ip = '127.0.0.1'
 bind_port = 8001
 
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -46,6 +45,7 @@ def handle_client_connection(client_socket):
         except Exception as e:
             print ("["+str(time.time())+"]:", "Could not unpack", e)
         else:
+            print("-------------------------------------------------")
             print("["+str(time.time())+"]:", "New experiment with id", init, "and RX2SF", rx2sf)
             rx2sf = int(rx2sf)
             next_dc[1] = 0

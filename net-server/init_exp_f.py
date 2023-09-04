@@ -65,6 +65,16 @@ if mode == 'U':
 elif mode == 'C':
 	rx2sf = 9
 	print("\nNew experiment with id:", init)
+	# contact the NS first to update rx2sf
+	try:
+		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		s.connect(('192.168.1.230', 8001))
+		MESSAGE = struct.pack('HB', init, rx2sf)
+		s.send( MESSAGE )
+		s.close()
+	except Exception as e:
+		print("Socket error!", e)
+	# contact all GWs and EDs
 	for asset in assets:
 		MESSAGE = bytes(0)
 		print(asset)
@@ -86,16 +96,6 @@ elif mode == 'C':
 			s.close()
 		except Exception as e:
 			print("Socket error!", e)
-	# also contact the NS first to update rx2sf
-	try:
-		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		s.connect(('192.168.1.230', 8001))
-		MESSAGE = struct.pack('HB', init, rx2sf)
-		s.send( MESSAGE )
-		s.close()
-	except Exception as e:
-		print("Socket error!", e)
-
 
 	print("\nWaiting for statistics\n")
 	f = open("stats"+str(init)+".txt", "w")
@@ -115,19 +115,7 @@ elif mode == 'C':
 					f.write( "%s: %s %s %s %s %s %s %s %s %s\n" % ( hex(id), str(sf), str(deliv), str(retr), str(fail), str(rss), str(tx_t), str(rx_t), str(rwone), str(rwtwo) ) )
 					a += 1
 					recvd_stats[id] = 1
-				#else:
-					#print("ed recv stat id  ", hex(id))
-					#print("len of data " + len(data))
-					#if(len(data) > 0):
-					#	print("data " + data)
-					#print("end recv error log")
 			except Exception as e:
 				print("wrong stat packet format!", e)
-		else:
-			print("ed stat error addr " ,addr)
-			print("len of data " ,len(data))
-			if(len(data) > 0):
-				print("data ",data)
-	print("end eds")
 	f.close()
 	s.close()
