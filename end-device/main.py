@@ -79,10 +79,10 @@ rwone = 0
 rwtwo = 0
 
 ### --- FUNCTIONS --- ###
-def random_sleep(max_sleep):
+def random_sleep_ms(max_sleep):
     t = random.getrandbits(32)
-    print("I will sleep for", 1+t%max_sleep, "secs")
-    time.sleep(1+t%max_sleep)
+    print("I will sleep for", 1+t%max_sleep, "ms")
+    time.sleep_ms(1+t%max_sleep)
 
 def convert_mac(mac):
     # first 24 bits = OUI
@@ -104,7 +104,7 @@ def wifi_connect():
     wlan.active(True)
     if not wlan.isconnected():
         print('connecting to network...')
-	random_sleep(10)
+	random_sleep_ms(10000)
         wlan.connect('IoTLab', '97079088')
         while not wlan.isconnected():
             pass
@@ -183,7 +183,7 @@ while(True):
     if (_start_experiment):
         start_exp = time.time()
         print("Random sleep time")
-        random_sleep(_period)
+        random_sleep_ms(_period*1000)
         lora.standby()
         pkts = 1
         delivered = 0
@@ -281,39 +281,40 @@ while(True):
             if (time.time() - start_exp < _exp_time) and (f == 0): # just skip the last sleep time
                 # watch for duty cycle violations here
                 time.sleep_ms(_period*1000)
-                random_sleep(1) # sleep for some random time as well
+                random_sleep_ms(1000) # sleep for some random time as well
             elif (time.time() - start_exp < _exp_time) and (f == 1):
                 if (retries < max_retries):
                     pkts -= 1
                     retries += 1
                     retransmitted += 1
-                    random_sleep(5) # in case of a failure -> retransmit (TODO: follow duty cycle rules)
+                    random_sleep_ms(5000) # in case of a failure -> retransmit (TODO: follow duty cycle rules)
                 else:
                     retries = 0
                     failed += 1
                     f = 0
                     time.sleep_ms(_period*1000)
-                    random_sleep(1) # sleep for some random time as well
+                    random_sleep_ms(1000) # sleep for some random time as well
             if (time.time() - start_exp >= _exp_time):
                 runn = 0
 
         if (_start_experiment == 0):
-            print("I am sending stats...")
-            random_sleep(100)
+            print("I am sending stats...", flush=True)
+            random_sleep_ms(100000)
             rx_time /= 1e6
             tx_time /= 1e6
             if delivered > 0:
                 rssi /= delivered
             stat_pkt = struct.pack('IBIIIfffii', dev_id, _sf, delivered, retransmitted, failed, rssi, tx_time, rx_time, rwone, rwtwo)
-            for t in range(3):
-                random_sleep(30)
+            for t in range(5):
+                random_sleep_ms(30000)
                 try:
                     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     s.connect(('192.168.1.230', 8002))
                     s.send(stat_pkt)
                     s.close()
+                    print("...sent", t, flush=True)
                 except Exception as e:
-                    print("Couldn't send out stats", e)
+                    print("Couldn't send out stats", e, flush=True)
             oled_lines("LoRa testbed", mac[2:], wlan.ifconfig()[0], "ED", "Done!")
             time.sleep(5)
             reset()
