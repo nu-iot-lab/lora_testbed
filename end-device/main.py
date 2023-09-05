@@ -298,7 +298,7 @@ while(True):
                 runn = 0
 
         if (_start_experiment == 0):
-            print("I am sending stats...", flush=True)
+            print("I am sending stats...")
             random_sleep_ms(100000)
             rx_time /= 1e6
             tx_time /= 1e6
@@ -312,9 +312,9 @@ while(True):
                     s.connect(('192.168.1.230', 8002))
                     s.send(stat_pkt)
                     s.close()
-                    print("...sent", t, flush=True)
+                    print("...sent", t)
                 except Exception as e:
-                    print("Couldn't send out stats", e, flush=True)
+                    print("Couldn't send out stats", e)
             oled_lines("LoRa testbed", mac[2:], wlan.ifconfig()[0], "ED", "Done!")
             time.sleep(5)
             reset()
