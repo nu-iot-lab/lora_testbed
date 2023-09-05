@@ -65,15 +65,6 @@ if mode == 'U':
 elif mode == 'C':
 	rx2sf = 9
 	print("\nNew experiment with id:", init)
-	# contact the NS first to update rx2sf
-	try:
-		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		s.connect(('192.168.1.230', 8001))
-		MESSAGE = struct.pack('HB', init, rx2sf)
-		s.send( MESSAGE )
-		s.close()
-	except Exception as e:
-		print("Socket error!", e)
 	# contact all GWs and EDs
 	for asset in assets:
 		MESSAGE = bytes(0)
@@ -96,6 +87,15 @@ elif mode == 'C':
 			s.close()
 		except Exception as e:
 			print("Socket error!", e)
+	# contact the NS as well to update rx2sf
+	try:
+		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		s.connect(('192.168.1.230', 8001))
+		MESSAGE = struct.pack('HB', init, rx2sf)
+		s.send( MESSAGE )
+		s.close()
+	except Exception as e:
+		print("Socket error!", e)
 
 	print("\nWaiting for statistics\n")
 	f = open("stats"+str(init)+".txt", "w")
