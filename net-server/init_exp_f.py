@@ -18,7 +18,7 @@ assets = []
 eds = 0
 init = random.randint(1, 65535)
 passwd = "97079088"
-rx2sf = 9 # default value
+rx2sf = 12 # default value
 
 with open("assets.txt") as file:
 	next(file)
@@ -70,7 +70,7 @@ elif mode == 'C':
 	# contact first the NS to update rx2sf
 	try:
 		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		s.connect(('192.168.1.230', 8001))
+		s.connect(('192.168.0.230', 8001))
 		MESSAGE = struct.pack('HB', init, rx2sf)
 		s.send( MESSAGE )
 		s.close()
@@ -102,7 +102,7 @@ elif mode == 'C':
 	f = open("stats"+str(init)+".txt", "w")
 	a = 1
 	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-	s.bind(('192.168.1.230', PORT))
+	s.bind(('192.168.0.230', PORT))
 	s.listen(100)
 	recvd_stats = {}
 	while (a <= eds):

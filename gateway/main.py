@@ -146,8 +146,9 @@ def rx_handler(recv_pkg):
         internal_recv = time.ticks_ms()
         try:
             print("---")
-            (dev_id, leng, cks, seq, msg) = struct.unpack('IBII%ds' % recv_pkg_len, recv_pkg)
-            print("Received from:", hex(dev_id), leng, cks, seq, msg, "at", recv_time, lora.get_rssi())
+            (dev_id, leng, cks, seq, cnfrm, msg) = struct.unpack('IBIHB%ds' % recv_pkg_len, recv_pkg)
+            rss = lora.get_rssi()
+            print("Received from:", hex(dev_id), leng, cks, seq, cnfrm, msg, "at", recv_time, rss)
             msg = msg.decode()
             cks_ = uhashlib.sha256(msg)
             cks_ = cks_.digest()
@@ -158,32 +159,33 @@ def rx_handler(recv_pkg):
                 # send data to net-server
                 try:
                     wlan_s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    wlan_s.connect(('192.168.1.230', 8001))
+                    wlan_s.connect(('192.168.0.230', 8001))
                 except Exception as e:
                     print("Connection to NS failed!", e)
                     wlan_s.close()
                 else:
-                    pkg = struct.pack('IIIBQ', gw_id, int(dev_id), seq, _sf, recv_time)
+                    pkg = struct.pack('IIHBBQi', gw_id, int(dev_id), seq, _sf, cnfrm, recv_time, rss)
                     wlan_s.send(pkg)
-                    msg = wlan_s.recv(512)
-                    win = 0
-                    try:
-                        (rgw_id, rdev_id, rseq, win) = struct.unpack('IIIB', msg)
-                        print("Received from NS:", rgw_id, rdev_id, rseq, win)
-                    except Exception as e:
-                        print("wrong NS packet format!", e)
-                        wlan_s.close()
-                        led.value(0)
-                    else:
-                        if (rgw_id == gw_id) and (rdev_id == dev_id) and (rseq == seq):
-                            if (win > 0):
-                                el = internal_recv+int(win)*1e3
-                                print(el)
-                                schedule.append([el, dev_id, seq, int(win)])
-                                print("RW"+str(win)+" ok")
-                            else:
-                                print("Gateway unavailable!")
-                        wlan_s.close()
+                    if int(cnfrm) == 1:
+                        msg = wlan_s.recv(512)
+                        win = 0
+                        try:
+                            (rgw_id, rdev_id, rseq, win) = struct.unpack('IIIB', msg)
+                            print("Received from NS:", rgw_id, rdev_id, rseq, win)
+                        except Exception as e:
+                            print("wrong NS packet format!", e)
+                            wlan_s.close()
+                            led.value(0)
+                        else:
+                            if (rgw_id == gw_id) and (rdev_id == dev_id) and (rseq == seq):
+                                if (win > 0):
+                                    el = internal_recv+int(win)*1e3
+                                    print(el)
+                                    schedule.append([el, dev_id, seq, int(win)])
+                                    print("RW"+str(win)+" ok")
+                                else:
+                                    print("Gateway unavailable!")
+                            wlan_s.close()
             else:
                 print("Checksum not valid!")
         except Exception as e:

@@ -210,7 +210,7 @@ while(True):
             cks = cks.decode()[:8]
             print("ID =", hex(dev_id), "Data =", data, "Checksum =", int(cks, 16))
             last_seq = pkts
-            pkt = struct.pack('IBII%ds' % len(data), dev_id, len(data), int(cks, 16), pkts, data)
+            pkt = struct.pack('IBIHB%ds' % len(data), dev_id, len(data), int(cks, 16), pkts, _confirmed, data)
             tm = time.ticks_us()
             lora.send(pkt)
             tx_time += time.ticks_us()-tm
@@ -309,7 +309,7 @@ while(True):
                 random_sleep_ms(6000)
                 try:
                     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    s.connect(('192.168.1.230', 8002))
+                    s.connect(('192.168.0.230', 8002))
                     s.send(stat_pkt)
                     s.close()
                 except Exception as e:
