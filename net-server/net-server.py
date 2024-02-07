@@ -43,10 +43,10 @@ def handle_client_connection(client_socket):
         try:
             (init, rx2sf) = struct.unpack('HB', request)
         except Exception as e:
-            print ("["+str(time.time())+"]:", "Could not unpack", e)
+            print ("["+str(time.time())+"]:", "Could not unpack", e, flush=True)
         else:
-            print("-------------------------------------------------")
-            print("["+str(time.time())+"]:", "New experiment with id", init, "and RX2SF", rx2sf)
+            print("-------------------------------------------------", flush=True)
+            print("["+str(time.time())+"]:", "New experiment with id", init, "and RX2SF", rx2sf, flush=True)
             rx2sf = int(rx2sf)
             next_dc[1] = 0
             next_dc[2] = 0
@@ -57,9 +57,9 @@ def handle_client_connection(client_socket):
     else:
         try:
             (gid, nid, seq, sf, cnfrm, recv_time, rss) = struct.unpack('IIHBBQi', request)
-            print ("["+str(time.time())+"]:", "Received from:", hex(gid), seq, sf, cnfrm, recv_time, rss)
+            print ("["+str(time.time())+"]:", "Received from:", hex(gid), hex(nid), seq, sf, cnfrm, recv_time, rss, flush=True)
         except Exception as e:
-            print ("["+str(time.time())+"]:", "Could not unpack", e)
+            print ("["+str(time.time())+"]:", "Could not unpack", e, flush=True)
         else:
             if cnfrm == 1: # check for resources if it is a confirmed packet
                 # check duty cycle and transmission availability
@@ -79,7 +79,7 @@ def handle_client_connection(client_socket):
                             next_dc[1] = recv_time + rw*1e9 + 99*airt
                             next_transm = recv_time+rw*1e9+airt
                             downlinks.append([recv_time+rw*1e9, recv_time+rw*1e9+airt])
-                            print ("["+str(time.time())+"]:", "Scheduled", hex(gid), seq, sf, "for RW1")
+                            print ("["+str(time.time())+"]:", "Scheduled", hex(gid), seq, sf, "for RW1", flush=True)
                     else:
                         if (recv_time+2*1e9 >= next_dc[2]):
                             rw = 2
@@ -88,17 +88,17 @@ def handle_client_connection(client_socket):
                                 next_dc[2] = recv_time + rw*1e9 + 9*airt
                                 next_transm = recv_time+rw*1e9+airt
                                 downlinks.append([recv_time+rw*1e9, recv_time+rw*1e9+airt])
-                                print ("["+str(time.time())+"]:", "Scheduled", hex(gid), seq, sf, "for RW2")
+                                print ("["+str(time.time())+"]:", "Scheduled", hex(gid), seq, sf, "for RW2", flush=True)
                         else:
-                            print ("["+str(time.time())+"]:", "No resources available for", hex(gid), "SF", sf)
+                            print ("["+str(time.time())+"]:", "No resources available for", hex(gid), "SF", sf, flush=True)
                 else:
-                    print ("["+str(time.time())+"]:", "Uplink clash for", hex(gid), "SF", sf)
+                    print ("["+str(time.time())+"]:", "Uplink clash for", hex(gid), "SF", sf, flush=True)
                 resp = struct.pack('IIIB', gid, nid, seq, rw)
                 client_socket.send(resp)
                 if mutex.locked() == True:
                     mutex.release()
             client_socket.close()
-            print ("Downlinks in queue:", len(downlinks))
+            print ("Downlinks in queue:", len(downlinks), flush=True)
 
 while True:
     client_sock, address = server.accept()
