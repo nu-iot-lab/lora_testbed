@@ -73,6 +73,7 @@ _sf = 7
 _rx2sf = 9
 _confirmed = 1
 max_retries = 1
+succ_retries = 1
 tx_time = 0.0
 rx_time = 0.0
 rwone = 0
@@ -110,7 +111,7 @@ def wifi_connect():
             pass
 
 def wait_commands():
-    global init, lora, _start_experiment, _exp_time, _sf, _rx2sf, _pkt_size, _period, _confirmed, wlan_s
+    global init, lora, _start_experiment, _exp_time, _sf, _rx2sf, _pkt_size, _period, _confirmed, wlan_s, succ_retries
     wifi_connect()
     webrepl.start()
     time.sleep(5)
@@ -136,7 +137,7 @@ def wait_commands():
         data = conn.recv(512)
         if (len(data) > 2):
             try:
-                (init, _exp_time, _pkt_size, _period, _sf, _rx2sf, _confirmed) = struct.unpack('HiiiBBB', data)
+                (init, _exp_time, _pkt_size, _period, _sf, _rx2sf, _confirmed, succ_retries) = struct.unpack('HiiiBBBB', data)
                 if (init > 0):
                     print("---------------------------------")
                     print("New experiment for", _exp_time, "secs and SF", _sf)
@@ -210,10 +211,11 @@ while(True):
             cks = cks.decode()[:8]
             print("ID =", hex(dev_id), "Data =", data, "Checksum =", int(cks, 16))
             last_seq = pkts
-            pkt = struct.pack('IBIHB%ds' % len(data), dev_id, len(data), int(cks, 16), pkts, _confirmed, data)
-            tm = time.ticks_us()
-            lora.send(pkt)
-            tx_time += time.ticks_us()-tm
+            for sux_tx in range(succ_retries):
+                pkt = struct.pack('IBBIHB%ds' % len(data), dev_id, len(data), sux_tx, int(cks, 16), pkts, _confirmed, data)
+                tm = time.ticks_us()
+                lora.send(pkt)
+                tx_time += time.ticks_us()-tm
             last_trans = time.ticks_ms()
             print("transmitted at:", last_trans)
             ack = 0

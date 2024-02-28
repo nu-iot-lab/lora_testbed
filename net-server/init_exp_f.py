@@ -19,6 +19,7 @@ eds = 0
 init = random.randint(1, 65535)
 passwd = "97079088"
 rx2sf = 12 # default value
+succ_retries = 1 # do not change (just for testing)
 
 with open("assets.txt") as file:
 	next(file)
@@ -86,7 +87,7 @@ elif mode == 'C':
 			MESSAGE = struct.pack('HBB', init, int(items[2]), int(items[3]))
 		elif (items[0] == 'ED'):
 			eds += 1
-			MESSAGE = struct.pack('HiiiBBB', init, int(items[2]), int(items[3]), int(items[4]), int(items[5]), int(items[6]), int(items[7]))
+			MESSAGE = struct.pack('HiiiBBBB', init, int(items[2]), int(items[3]), int(items[4]), int(items[5]), int(items[6]), int(items[7]), succ_retries)
 		else:
 			continue
 		print("Sending to", items[0])

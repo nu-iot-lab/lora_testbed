@@ -26,7 +26,7 @@ The hardware is based on commonly used LILYGO TTGO v1.2 and/or Heltec LoRa v2.
 ------------------    wifi   ----------
 | Network Server |-----------| Router |
 ------------------           ----------
-  192.168.1.230             192.168.1.1
+  192.168.0.230             192.168.0.1
                                  | 
                                  |wifi
                                  |
@@ -36,7 +36,7 @@ The hardware is based on commonly used LILYGO TTGO v1.2 and/or Heltec LoRa v2.
 |  ------------    LoRa    -------   |
 |  | gateways |------------| EDs |   |
 |  ------------            -------   |
-|   192.168.1.x          192.168.1.x |
+|   192.168.0.x          192.168.0.x |
 |                                    |
 --------------------------------------
 ```

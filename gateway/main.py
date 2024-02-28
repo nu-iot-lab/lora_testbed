@@ -146,9 +146,9 @@ def rx_handler(recv_pkg):
         internal_recv = time.ticks_ms()
         try:
             print("---")
-            (dev_id, leng, cks, seq, cnfrm, msg) = struct.unpack('IBIHB%ds' % recv_pkg_len, recv_pkg)
+            (dev_id, leng, sux_tx, cks, seq, cnfrm, msg) = struct.unpack('IBBIHB%ds' % recv_pkg_len, recv_pkg)
             rss = lora.get_rssi()
-            print("Received from:", hex(dev_id), leng, cks, seq, cnfrm, msg, "at", recv_time, rss)
+            print("Received from:", hex(dev_id), leng, sux_tx, cks, seq, cnfrm, msg, "at", recv_time, rss)
             msg = msg.decode()
             cks_ = uhashlib.sha256(msg)
             cks_ = cks_.digest()
@@ -164,7 +164,7 @@ def rx_handler(recv_pkg):
                     print("Connection to NS failed!", e)
                     wlan_s.close()
                 else:
-                    pkg = struct.pack('IIHBBQi', gw_id, int(dev_id), seq, _sf, cnfrm, recv_time, rss)
+                    pkg = struct.pack('IIHBBBQi', gw_id, int(dev_id), seq, sux_tx, _sf, cnfrm, recv_time, rss)
                     wlan_s.send(pkg)
                     if int(cnfrm) == 1:
                         msg = wlan_s.recv(512)
